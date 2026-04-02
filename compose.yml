@@ -1,0 +1,41 @@
+version: "3.9"
+services:
+  routeros:
+    image: evilfreelancer/docker-routeros:latest
+    container_name: mikrotik-test
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun
+      - /dev/kvm
+    ports:
+      - "2222:22"      # SSH
+      - "2223:23"      # Telnet
+      - "80:80"        # Webfig
+      - "8291:8291"    # Winbox
+      - "8728:8728"    # API
+      - "8729:8729"    # API-SSL
+    volumes:
+      - routeros-data:/data
+    networks:
+      - default
+      - routeros_net   # Pour la communication avec d'autres conteneurs
+
+  vpn:
+    image: siomiz/softethervpn
+    container_name: cashmoov-vpn-test
+    cap_add:
+      - NET_ADMIN
+    ports:
+      - "443:443/tcp"   # Port pour le SSTP
+      - "5555:5555/tcp" # Port pour l'administration SoftEther
+    environment:
+      - PSK=cashmoov_secret
+    restart: always
+
+networks:
+  routeros_net:
+    driver: bridge
+
+volumes:
+  routeros-data:
