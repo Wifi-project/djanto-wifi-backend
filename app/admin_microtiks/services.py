@@ -89,15 +89,28 @@ def create_users(microtik_slug,profil_slug,user_numbers):
 
 
 def list_user(microtik_slug:str,owner:User) -> list[User]:
-    microtik = Microtik.objects.filter(slug=microtik_slug,owner=owner).first()
+    microtik = Microtik.objects.prefetch_related("clients").filter(slug=microtik_slug,owner=owner).first()
     if not microtik:
         raise HttpError(
             status_code=HTTPStatus.BAD_REQUEST,
             message="Aucun slug correspondant a ce microtik."
         )
-    users = Client.objects.filter(microtik=microtik)
-    print(users)
+    users = microtik.clients.all()
     return users
+
+
+def retrieve_user(microtik_slug:str,client_slug:str,owner:User) -> User:
+    client = Client.objects.select_related("microtik").filter(
+        microtik__slug = microtik_slug,
+        slug = client_slug
+    ).first()
+
+    if not client:
+        raise HttpError(
+            status_code=404,
+            message="aucun client trouver pour ce slug"
+        )
+    return client
 
 
 def blocked_unlocked_user(microtik_slug:str,user_slug:str,is_desable:bool):
@@ -204,3 +217,18 @@ def users_no_expired(microtik_slug):
             })
 
 
+def info_deposit_list(microtik_slug:str,owner:User):
+    return InfoDeposit.objects.filter(microtik__slug=microtik_slug)
+
+def info_deposit_retrive(microtik_slug:str,deposit_slug:str,owner:User):
+    info_depot = InfoDeposit.objects.filter(
+        slug = deposit_slug,
+        microtik__slug=microtik_slug,
+        ).first()
+
+    if not info_depot:
+        raise HttpError(
+            status_code=404,
+            message="Aucun client avec ce slug trouver."
+        )
+    return info_depot

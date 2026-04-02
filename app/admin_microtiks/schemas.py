@@ -59,6 +59,10 @@ class ClientNoExpireSchema(Schema):
     disabled: str
 
 
+class ClientBlockedOutSchemas(Schema):
+    status: str 
+    message: str 
+
 
 class InfoDepositBase(Schema):
     phone_number: str

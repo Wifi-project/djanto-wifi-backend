@@ -28,7 +28,7 @@ from app.microtiks.schemas import (
 from ninja_simple_jwt.auth.ninja_auth import HttpJwtAuth
 
 
-microtik_router = Router(tags=["Microtik"])
+microtik_router = Router(tags=["Microtik"], auth=[GlobalAuth()])
 
 
 #--------------------------GESTION MICROTIK----------------------#
