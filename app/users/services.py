@@ -34,6 +34,19 @@ def update_user(user:User,data:dict=[str,str | bool]):
     return user
 
 
+def retrive_user_service(slug:str):
+    user = User.objects.filter(slug=slug).first()
+
+    if not user:
+        raise HttpError(
+            status_code=404,
+            message="Aucun utilisateur correspondant à ce slug."
+        )
+    
+    return user
+
+
+
 def reset_password(user:User,password:str):
     # try:
     #     user = User.objects.get(slug=slug)

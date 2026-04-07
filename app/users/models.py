@@ -6,7 +6,7 @@ from django.utils import timezone
 
 class User(AbstractBaseUser,Base):
 
-    OWNERSYSTEME = "supervisor"
+    OWNERSYSTEME = "ownersysteme"
     ADMIN = "admin"
     OWNERMICROTIK = "ownermicrotik"
 
@@ -32,3 +32,12 @@ class User(AbstractBaseUser,Base):
 
     objects = UserManager()
 
+
+class OwnerMicrotik(Base):
+    user = models.OneToOneField(
+        User, on_delete=models.CASCADE, 
+        related_name="ownermicrotik",unique=True
+        )
+    pourcentage = models.IntegerField(default=20)
+    carte = models.ImageField(upload_to='carte/')
+    

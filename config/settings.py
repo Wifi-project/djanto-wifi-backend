@@ -42,10 +42,10 @@ INSTALLED_APPS = [
     'ninja_simple_jwt',
 
     'app.adminsystem',
-    'app.admin_microtiks',
     'app.clients',
     'app.microtiks',
     'app.users',
+    'app.finances',
 ]
 
 

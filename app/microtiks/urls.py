@@ -4,15 +4,17 @@ from http import HTTPStatus
 from app.users.models import User
 from ninja.pagination import paginate,LimitOffsetPagination
 from app.users.deps import GlobalAuth
+from typing import List
 from app.microtiks.models import Microtik,Profil
 from app.microtiks.services import (
-    create_microtik,
-    update_microtik,
+    create_microtik_service,
+    update_microtik_service,
     check_connexion as check_connexion_service,
-    create_profil,
-    update_profil,
-    delete_profil as delete,
-    profil_liste
+    create_profil_service,
+    update_profil_service,
+    delete_profil_service as delete,
+    profil_liste_service,
+    retrieve_microtik_service
 )
 from app.microtiks.schemas import (
     MicrotikInSchemas,
@@ -39,7 +41,7 @@ microtik_router = Router(tags=["Microtik"], auth=[GlobalAuth()])
         )
 def create(request,data:MicrotikInSchemas):
     user = request.user 
-    return create_microtik(data=data.model_dump(), user=user)
+    return create_microtik_service(data=data.model_dump(), user=user)
 
 
 @microtik_router.post(
@@ -50,6 +52,7 @@ def create(request,data:MicrotikInSchemas):
 def check_connexion(request,data:MicrotikCheckSchemas) -> MicrotikCheckResponseSchemas:
     return check_connexion_service(data=data.model_dump())
 
+
 @microtik_router.patch(
     "/update/{slug}", 
     response=MicrotikOutListSchemas,
@@ -57,85 +60,100 @@ def check_connexion(request,data:MicrotikCheckSchemas) -> MicrotikCheckResponseS
     auth=[GlobalAuth()]  
 )
 def update(request, data: MicrotikUpdateSchemas, slug: str) -> MicrotikOutListSchemas:
-    user = request.user
-
-    if not user.microtiks.filter(slug=slug).exists():
-        raise HttpError(
-            status_code=HTTPStatus.BAD_REQUEST,
-            message="Ce microtik ne t'appartient pas."
-        )
-    
-    return update_microtik(data=data.model_dump(exclude_unset=True), slug=slug)
+    user = request.user    
+    return update_microtik_service(
+        data=data.model_dump(exclude_unset=True), 
+        user = user,
+        slug=slug)
 
 
 @microtik_router.get(
         "/list/", 
         response=list[MicrotikOutListSchemas], 
-        description="afficher la liste des microtik",
+        description="afficher la liste des microtiks appartenant a la personne connecter," \
+        "si la personne connecter est un admin il verra la liste de tous les microtiks existant.",
         auth=GlobalAuth()
         )
 @paginate(LimitOffsetPagination, papage_size=10)
 def list_microtik(request):
     user = request.user
-    return Microtik.objects.filter(owner=user)
+    if user.user_type == User.OWNERSYSTEME or User.ADMIN:
+        microtik = Microtik.objects.all()
+    else:
+        microtik = Microtik.objects.filter(owner=user)
+    return microtik
 
 
 @microtik_router.get(
-        "/retrieve/{slug}/", 
+        "/retrieve/{microtik_slug}/", 
         response=MicrotikOutRetrieveSchemas,
+        auth=GlobalAuth([]),
         description="afficher les details d'un microtik."
         )
-def retrieve_microtik(request,slug:str) -> MicrotikOutRetrieveSchemas:
-    try:
-        microtik = Microtik.objects.get(slug=slug)
-        return microtik
-    except Microtik.DoesNotExist:
-        return HttpError(
-            status_code=HTTPStatus.BAD_REQUEST,
-            message="Aucun microtik trouver existant avec ce slug."
-        )
+def retrieve_microtik(request,microtik_slug:str) -> MicrotikOutRetrieveSchemas:
+    user = request.user
+    return retrieve_microtik_service(
+        microtik_slug=microtik_slug,
+        user=user
+    )
+
 
 
 #------------------------------LES PROFILES -------------------------------#
 
 @microtik_router.post(
-        '/{slug_microtik}/profile-create/', 
+        '/{microtik_slug}/profile-create/', 
         response=MicrotikCheckResponseSchemas, 
         description="creation des profil pour un microtik"
         )
-def profile_create(request,data:ProfilInSchema, slug_microtik:str) -> MicrotikCheckResponseSchemas:
-    return create_profil(data=data.model_dump(), slug_microtik=slug_microtik)
+def profile_create(request,data:ProfilInSchema, microtik_slug:str) -> MicrotikCheckResponseSchemas:
+    user = request.user
+    return create_profil_service(
+        data=data.model_dump(),
+        microtik_slug=microtik_slug,
+        user = user
+        )
 
 
 @microtik_router.patch(
-        '/{slug_microtik}/update-profile/{slug_profil}/', 
+        '/{microtik_slug}/update-profile/{slug_profil}/', 
         response=MicrotikCheckResponseSchemas,
         description="La mise a jour du profile microtik"
         )
-def profile_update(request,data:ProfilUpdateSchema,slug_microtik:str,slug_profil:str) -> MicrotikCheckResponseSchemas:
-    return update_profil(
-        slug_microtik=slug_microtik,
+def profile_update(request,data:ProfilUpdateSchema,microtik_slug:str,slug_profil:str) -> MicrotikCheckResponseSchemas:
+    user = request.user 
+
+    return update_profil_service(
+        microtik_slug=microtik_slug,
         slug_profil=slug_profil, 
+        user = user,
         data=data.model_dump(exclude_unset=True)
         )
 
 
 @microtik_router.delete(
-        '/{slug_microtik}/delete-profil/{slug_profil}/',
+        '/{microtik_slug}/delete-profil/{slug_profil}/',
         response=MicrotikCheckResponseSchemas,
         description="Supprimer un profil"
         )
-def delete_profil(request,slug_microtik:str,slug_profil:str) -> MicrotikCheckResponseSchemas:
+def delete_profil(request,microtik_slug:str,slug_profil:str) -> MicrotikCheckResponseSchemas:
+    user = request.user 
+
     return delete(
-        microtik_slug=slug_microtik,
-        profil_slug=slug_profil
+        microtik_slug=microtik_slug,
+        profil_slug=slug_profil,
+        user = user
     )
 
 
 @microtik_router.get(
-        '/{slug_microtik}/list-profil/', 
-        response= list[ProfilOutSchema],
-        description="Afficher la liste des proles d'un microtik."
+        '/{microtik_slug}/list-profil/', 
+        response= List[ProfilOutSchema],
+        description="Afficher la liste des proles d'un microtik.",
+        auth=None
         )
-def list_profil(request,slug_microtik:str):
-    return profil_liste(microtik_slug=slug_microtik)
+def list_profil(request,microtik_slug:str):
+    # user = request.user 
+    return profil_liste_service(
+        microtik_slug=microtik_slug
+        )

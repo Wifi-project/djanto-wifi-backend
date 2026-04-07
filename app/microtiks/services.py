@@ -1,24 +1,34 @@
 from app.microtiks.models import Microtik,Profil
-from app.admin_microtiks.models import OwnerMicrotik
 from app.users.models import User
 from ninja.errors import HttpError
 from http import HTTPStatus
 from app.microtiks.schemas import ProfilDuratinEnum
-import routeros_api
-from app.utils.def_utils import connect_microtik
+from app.utils.def_utils import connect_microtik, profil_duration, check_property_microtik
 
-def create_microtik(data:dict[str,str|int], user:User) -> Microtik:
+
+def create_microtik_service(data:dict[str,str|int], user:User) -> Microtik:
     return Microtik.objects.create(**data,owner=user)
 
 
-def update_microtik(slug:str,data:dict[str,str|int]) -> Microtik:
-    microtik = Microtik.objects.filter(slug=slug).first()
+def update_microtik_service(slug:str,data:dict[str,str|int], user:User) -> Microtik:
+    microtik = check_property_microtik(
+        microtik_slug=slug,
+        user=user
+    )
 
     for key,value in data.items():
         setattr(microtik, key,value)
     microtik.save()
     
     return microtik
+
+
+def retrieve_microtik_service(microtik_slug, user):
+
+    return check_property_microtik(
+        microtik_slug=microtik_slug,
+        user=user
+    )
 
 
 def check_connexion(data:dict):
@@ -30,14 +40,7 @@ def check_connexion(data:dict):
             status_code=HTTPStatus.BAD_REQUEST,
             message="Vous devez renseigner le ip, username, password obligatoirement"
         )
-    connection = routeros_api.RouterOsApiPool(
-        ip, 
-        username=username, 
-        password=password,
-        port=8728,
-        use_ssl=False,
-        plaintext_login=True
-        )
+    connection = connect_microtik(ip=ip,username=username,password=password)
     try:
         api = connection.get_api()
         return {"status":True, "message":"Connexion etablie avec success."}
@@ -48,9 +51,11 @@ def check_connexion(data:dict):
         except: pass
 
 
-def create_profil(data:dict, slug_microtik) -> Profil:
-
-    microtik = Microtik.objects.filter(slug = slug_microtik).first()
+def create_profil_service(data:dict, microtik_slug:str, user:User) -> Profil:
+    microtik = check_property_microtik(
+        microtik_slug=microtik_slug,
+        user=user
+    )
 
     if not microtik:
         raise HttpError(
@@ -89,13 +94,11 @@ def create_profil(data:dict, slug_microtik) -> Profil:
 
 
 
-def update_profil(slug_microtik:str,slug_profil:str, data:dict) -> Profil:
-    microtik = Microtik.objects.prefetch_related('profils').filter(slug=slug_microtik).first()
-    if not microtik:
-        raise HttpError(
-            status_code=HTTPStatus.BAD_REQUEST,
-            message="Aucun microtik correspondant a ce slug"
-        )
+def update_profil_service(microtik_slug:str,user:User,slug_profil:str, data:dict) -> Profil:
+    microtik = check_property_microtik(
+        microtik_slug=microtik_slug,
+        user=user
+    )
     
     profil = microtik.profils.filter(slug=slug_profil).first()
     if not profil: 
@@ -140,7 +143,7 @@ def update_profil(slug_microtik:str,slug_profil:str, data:dict) -> Profil:
             for key,value in data.items():
                 setattr(profil, key,value)
             profil.save()
-            
+
             return {"status": True, "message": "profile modifie avec success"}
         except Exception as e:
             return {"status": False, "message": f"la modification du profil a echoue {e}"}
@@ -149,13 +152,11 @@ def update_profil(slug_microtik:str,slug_profil:str, data:dict) -> Profil:
 
 
 
-def delete_profil(microtik_slug:str,profil_slug:str):
-    microtik = Microtik.objects.prefetch_related('profils').filter(slug=microtik_slug).first()
-    if not microtik:
-        raise HttpError(
-            status_code=HTTPStatus.BAD_REQUEST,
-            message="Aucun microtik correspondant a ce slug"
-        )
+def delete_profil_service(microtik_slug:str,profil_slug:str, user:User):
+    microtik = check_property_microtik(
+        microtik_slug=microtik_slug,
+        user=user 
+    )
     
     profil = microtik.profils.filter(slug=profil_slug).first()
     if not profil: 
@@ -182,28 +183,14 @@ def delete_profil(microtik_slug:str,profil_slug:str):
         connection.disconnect()
 
 
-def profil_liste(microtik_slug:str):
-    microtik = Microtik.objects.prefetch_related('profils').filter(slug=microtik_slug).first()
-    if not microtik:
-        raise HttpError(
-            status_code=HTTPStatus.BAD_REQUEST,
-            message="Aucun microtik trouver avec ce slug"
-        )
+def profil_liste_service(microtik_slug:str):
+    microtik = Microtik.objects.filter(slug=microtik_slug).first()
     
     profil = microtik.profils.all()
 
     return profil
 
 
-
-def profil_duration(duration,type_session):
-    if type_session == ProfilDuratinEnum.MINUTES:
-        session_timeout = f"00:{duration:02d}:00"
-    elif type_session == ProfilDuratinEnum.HOURS:
-        session_timeout = f"{duration:02d}:00:00"
-    elif type_session == ProfilDuratinEnum.DAYS:
-        session_timeout = f"{duration}d 00:00:00"
-    return session_timeout
 
 
 

@@ -15,6 +15,8 @@ class Client(Base):
     microtik = models.ForeignKey(Microtik, on_delete=models.CASCADE, related_name='clients', related_query_name='clients')
     limit_uptime = models.CharField(max_length=50)
     profil_name = models.CharField(max_length=50)
+    info_deposit = models.ForeignKey("InfoDeposit",on_delete=models.CASCADE, related_name="client_deposit" )
+    generate = models.BooleanField(default=False)
     status = models.BooleanField(default=Status.ACTIVE, choices=Status)
 
     def __str__(self):
@@ -29,7 +31,7 @@ class InfoDeposit(Base):
     phone_number = models.CharField(max_length=10, null=False,blank=False)
     number_receve_code = models.CharField(max_length=10, null=False,blank=False)
     amount = models.DecimalField(max_digits=10, decimal_places=2)
-    client = models.ForeignKey(Client, on_delete=models.CASCADE, null=True)
+    # client = models.ForeignKey(Client, on_delete=models.CASCADE, null=True)
     status = models.CharField(default=PENDING, max_length=15)
     profil_name = models.CharField(max_length=50)
     limit_uptime = models.CharField(max_length=50)

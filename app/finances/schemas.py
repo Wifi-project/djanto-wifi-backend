@@ -9,20 +9,8 @@ class DepositStatus(str, Enum):
     FAILED = "failed"
     SUCCESS = "success"
 
-
 class MicrotikNameOut(Schema):
     name: str 
-
-
-
-class ClientIn(Schema):
-    profil_slug: str
-    user_numbers : int = Field(le=200, description="maximum 200")
-
-class ClientCreateResponse(Schema):
-    username: str 
-    password: str 
-    
 
 class ClientOut(Schema):
     slug: str
@@ -35,33 +23,6 @@ class ClientOut(Schema):
     status: str
     created_at: datetime | None = None
 
-    class Config:
-        from_attributes=True
-
-
-class ClientRetrieve(ClientOut):
-    microtik: MicrotikNameOut
-
-
-class ClientActifSchema(Schema):
-    username: str
-    ip: str
-    connexion_time: str  
-    expire_in: int
-
-
-class ClientNoExpireSchema(Schema):
-    name: str
-    limit_uptime: str
-    uptime: str 
-    address: str
-    profile: str
-    disabled: str
-
-
-class ClientBlockedOutSchemas(Schema):
-    status: str 
-    message: str 
 
 
 class InfoDepositBase(Schema):

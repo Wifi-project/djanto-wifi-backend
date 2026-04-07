@@ -5,8 +5,17 @@ from app.users.models import User
 from typing import List
 from http import HTTPStatus
 from ninja.errors import HttpError
-from app.users.schemas import UserInSchema,UserOutSchema, UserUpdate, UserPasswordUpdate, UserPasswordUpdateMe
-from app.users.services import user_creation, update_user as update_user_service, reset_password
+from app.users.schemas import (
+    UserInSchema,UserOutSchema, 
+    UserUpdate, 
+    UserPasswordUpdate, 
+    UserPasswordUpdateMe,
+    UserRetrieveScheama
+    )
+from app.users.services import (
+    user_creation, update_user as update_user_service,
+    reset_password,retrive_user_service
+    )
 from app.users.deps import GlobalAuth
 from django.contrib.auth.hashers import check_password
 from app.utils.password_check import check_security_password
@@ -55,6 +64,11 @@ def current_user_delete(request):
 @paginate(LimitOffsetPagination, page_size=10)  
 def user_list(request):
     return User.objects.all()
+
+
+@user_router.get('/profile/users/{slug}', auth=GlobalAuth([]), response=UserRetrieveScheama)  
+def user_retrieve(request, slug:str)-> UserRetrieveScheama:
+    return retrive_user_service(slug=slug)
 
 
 @user_router.post('/profile/users/', response=UserOutSchema)

@@ -1,7 +1,10 @@
 import secrets
 import string
 import routeros_api
-
+from app.microtiks.schemas import ProfilDuratinEnum
+from app.users.models import User
+from app.microtiks.models import Microtik
+from ninja.errors import HttpError
 
 def generer_code_unique(longueur=8):
     character = (
@@ -10,6 +13,7 @@ def generer_code_unique(longueur=8):
     )
 
     return ''.join(secrets.choice(character) for _ in range(longueur))
+
 
 def connect_microtik(ip,username,password):
 
@@ -30,3 +34,70 @@ def connect_microtik(ip,username,password):
         try: connection.disconnect()
         except: pass
 
+
+
+def profil_duration(duration,type_session):
+    if type_session == ProfilDuratinEnum.MINUTES:
+        session_timeout = f"00:{duration:02d}:00"
+    elif type_session == ProfilDuratinEnum.HOURS:
+        session_timeout = f"{duration:02d}:00:00"
+    elif type_session == ProfilDuratinEnum.DAYS:
+        session_timeout = f"{duration}d 00:00:00"
+    return session_timeout
+
+
+def check_property_microtik(microtik_slug:str, user:User):
+    if user.user_type == User.OWNERMICROTIK:
+        microtik = (
+            Microtik.objects.prefetch_related('profils')
+            .filter(slug=microtik_slug, owner=user).first()
+            )
+    else:
+        microtik = (
+            Microtik.objects.prefetch_related('profils')
+            .filter(slug=microtik_slug).first()
+            )
+    if not microtik:
+        raise HttpError(
+            status_code=404,
+            message="Aucun microtik avec ce slug existant."
+        )
+    return microtik
+
+
+
+def creer_ticket_code(
+        microtik:Microtik,
+        code_paye:list, 
+        profile_name:str, 
+        limit_uptime:str, 
+        comment:str) -> dict:
+
+    connection = connect_microtik(
+        ip=microtik.ip,
+        username=microtik.username,
+        password=microtik.password
+        )
+
+    api = connection.get_api()
+    list_user = api.get_resource('/ip/hotspot/user')
+    
+    try:
+        for code in code_paye:
+            list_user.add(
+                name=code, 
+                password=code, 
+                profile=profile_name,
+                limit_uptime = limit_uptime,
+                comment=comment
+            )
+        return {"status":True,"message":f"success"}
+    
+    except Exception as e:
+        if "already exists" in str(e).lower():
+            pass
+
+        return {"status":False,"message":f"Erreur MikroTik : {e}"}
+    
+    finally:
+        connection.disconnect()
