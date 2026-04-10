@@ -52,7 +52,6 @@ def current_user_reset_password(request,data:UserPasswordUpdateMe) -> dict[int,s
     return {200:"Mot de pass modifier avec success"}
 
     
-
 @user_router.delete('/me/delete/', auth=GlobalAuth())
 def current_user_delete(request):
     user = request.user
@@ -60,13 +59,13 @@ def current_user_delete(request):
     return {'message':"Compte supprimer avec success"}
 
 
-@user_router.get('/profile/users', response=List[UserOutSchema], auth=GlobalAuth([]))  
+@user_router.get('/profile/users', response=List[UserOutSchema], auth=GlobalAuth())  
 @paginate(LimitOffsetPagination, page_size=10)  
 def user_list(request):
     return User.objects.all()
 
 
-@user_router.get('/profile/users/{slug}', auth=GlobalAuth([]), response=UserRetrieveScheama)  
+@user_router.get('/profile/users/{slug}', auth=GlobalAuth(), response=UserRetrieveScheama)  
 def user_retrieve(request, slug:str)-> UserRetrieveScheama:
     return retrive_user_service(slug=slug)
 
@@ -76,7 +75,7 @@ def create_user(request,user:UserInSchema) -> UserOutSchema:
     return user_creation(data=user.model_dump())
 
 
-@user_router.patch('/profile/users/{slug}',response=UserOutSchema, auth=GlobalAuth([]))
+@user_router.patch('/profile/users/{slug}',response=UserOutSchema, auth=GlobalAuth())
 def update_user(request,slug,data:UserUpdate)-> UserOutSchema:
     user = User.objects.filter(slug=slug).first()
     return update_user_service(
@@ -84,7 +83,7 @@ def update_user(request,slug,data:UserUpdate)-> UserOutSchema:
                 data=data.model_dump(exclude_unset=True)
                 )
 
-@user_router.post('profile/users/reset_password/',auth=GlobalAuth([]))
+@user_router.post('profile/users/reset_password/',auth=GlobalAuth())
 def user_reset_password(request,data:UserPasswordUpdate) -> dict[int,str]:
     password = data.new_password
     try:
@@ -103,7 +102,7 @@ def user_reset_password(request,data:UserPasswordUpdate) -> dict[int,str]:
     return {200:"Le mot de passe modifier avec success.\n Veillez consulter votre mail."}
 
 
-@user_router.delete('profile/users/{slug}/',auth=GlobalAuth([]))
+@user_router.delete('profile/users/{slug}/',auth=GlobalAuth())
 def delete_user(request,slug):
     try:
         user = User.objects.get(slug=slug)

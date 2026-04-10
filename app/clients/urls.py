@@ -12,7 +12,7 @@ from app.clients.schemas import (
     ClientBlockedOutSchemas,
     ClientRetrieve,
 )
-from app.users.deps import GlobalAuth,MicrotikAuth,SubscriptionVpn
+from app.users.deps import GlobalAuth,IsOwnerMicrotik,HasValidVpn
 
 from app.clients.services import (
     deposit,
@@ -38,11 +38,11 @@ def notifiurl(request,data:PaymentWebhook):
 
 @client_router.post(
         "/{microtik_slug}/create-client", 
-        auth=[GlobalAuth(),MicrotikAuth(),SubscriptionVpn()],
+        auth=GlobalAuth(permissions=[IsOwnerMicrotik, HasValidVpn]),
         response=list[ClientCreateResponse],
         description="La route pour le creation des clients par le owner microtik"
         )
-def create_clients(request,data:ClientIn):
+def create_clients(request,data:ClientIn,microtik_slug:str):
     return ClientService.create_client_service(
         microtik=request.microtik,
         profil_slug=data.profil_slug,
@@ -52,11 +52,11 @@ def create_clients(request,data:ClientIn):
 
 @client_router.patch(
         "/{microtik_slug}/bloked-client/{user_slug}",
-        auth=[GlobalAuth(),MicrotikAuth(),SubscriptionVpn()],
+        auth=GlobalAuth(permissions=[IsOwnerMicrotik, HasValidVpn]),
         response=ClientBlockedOutSchemas,
         description="Le blocage d'un utilisateur."
         )
-def block_client(request,user_slug:str) -> ClientBlockedOutSchemas:
+def block_client(request,user_slug:str,microtik_slug:str) -> ClientBlockedOutSchemas:
 
     return ClientService.blocked_unlocked_client_service(
         microtik=request.microtik,
@@ -68,10 +68,10 @@ def block_client(request,user_slug:str) -> ClientBlockedOutSchemas:
 
 @client_router.patch(
         "/{microtik_slug}/unblok-client/{user_slug}",
-        auth=[GlobalAuth(),MicrotikAuth(),SubscriptionVpn()],
+        auth=GlobalAuth(permissions=[IsOwnerMicrotik, HasValidVpn]),
         description="la route pour le deblocage d'un client"
         )
-def unblock_client(request,user_slug:str) -> ClientBlockedOutSchemas:
+def unblock_client(request,user_slug:str,microtik_slug:str) -> ClientBlockedOutSchemas:
 
     return ClientService.blocked_unlocked_client_service(
         microtik=request.microtik,
@@ -83,10 +83,10 @@ def unblock_client(request,user_slug:str) -> ClientBlockedOutSchemas:
 
 @client_router.get(
         "{microtik_slug}/list-client",
-        auth=[GlobalAuth(),MicrotikAuth()],
+        auth=GlobalAuth(permissions=[IsOwnerMicrotik]),
         response=list[ClientOut]
         )
-def list_client(request) -> list[ClientOut]:
+def list_client(request,microtik_slug:str) -> list[ClientOut]:
     return ClientService.list_client_service(
         microtik=request.microtik,
         )
@@ -94,10 +94,10 @@ def list_client(request) -> list[ClientOut]:
 
 @client_router.get(
         "{microtik_slug}/retrieve-client/{client_slug}",
-        auth=[GlobalAuth(),MicrotikAuth()],
+        auth=GlobalAuth(permissions=[IsOwnerMicrotik]),
         response=list[ClientRetrieve]
         )
-def retrieve_client(request,client_slug:str) -> list[ClientRetrieve]:
+def retrieve_client(request,client_slug:str,microtik_slug:str) -> list[ClientRetrieve]:
     return ClientService.retrieve_client_service(
         microtik=request.microtik,
         client_slug=client_slug,
@@ -106,10 +106,10 @@ def retrieve_client(request,client_slug:str) -> list[ClientRetrieve]:
 
 @client_router.get(
         "{microtik_slug}/actif-client",
-        auth=[GlobalAuth(),MicrotikAuth(),SubscriptionVpn()],
+        auth=GlobalAuth(permissions=[IsOwnerMicrotik, HasValidVpn]),
         response=list[ClientActifSchema]
         )
-def actif_client(request) -> list[ClientActifSchema]:
+def actif_client(request,microtik_slug:str) -> list[ClientActifSchema]:
     return ClientService.actif_list_client_service(
         microtik=request.microtik,
         vpn=request.vpn
@@ -118,10 +118,10 @@ def actif_client(request) -> list[ClientActifSchema]:
 
 @client_router.get(
         "{microtik_slug}/no-expired-client", 
-        auth=[GlobalAuth(),MicrotikAuth(),SubscriptionVpn()],
+        auth=GlobalAuth(permissions=[IsOwnerMicrotik, HasValidVpn]),
         response=list[ClientNoExpireSchema]
         )
-def non_expire_client(request) -> list[ClientNoExpireSchema]:
+def non_expire_client(request,microtik_slug:str) -> list[ClientNoExpireSchema]:
     return ClientService.no_expired_client_service(
         microtik=request.microtik
     )

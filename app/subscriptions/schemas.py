@@ -51,11 +51,11 @@ class SubscriptionResponse(Schema):
 class SubscriptionVpnOutSchema(Schema):
     vpn_username: str 
     vpn_password: str 
-    vpn_ip: IPvAnyAddress | None = None
-    expire_at: datetime | None = None
-    is_paid: bool | None = None
-    validation: bool | None = None
-    category: SubscriptionCategorieOutShema | None = None
+    vpn_ip: IPvAnyAddress 
+    expire_at: datetime 
+    is_paid: bool 
+    validation: bool 
+    category: SubscriptionCategorieOutShema 
 
     class Config:
         from_attributes = True

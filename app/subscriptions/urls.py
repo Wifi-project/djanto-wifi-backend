@@ -13,7 +13,7 @@ from app.users.deps import GlobalAuth
 from app.subscriptions.services import update_subscrib_vpn
 
 
-subscription = Router(tags=["Subscription-Vpn"], auth=GlobalAuth([]))
+subscription = Router(tags=["Subscription-Vpn"], auth=GlobalAuth())
 
 
 @subscription.post("/categories", response=SubscriptionCategorieOutShema) 

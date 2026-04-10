@@ -11,77 +11,84 @@ if TYPE_CHECKING:
     from app.microtiks.models import Microtik
 
 
+class BasePermission:
+    def has_permission(self, request):
+        return True
+    
+
+class IsOwnerMicrotik(BasePermission):
+    def has_permission(self, request):
+        microtik_slug = request.resolver_match.kwargs.get("microtik_slug", "")
+        
+        if not microtik_slug:
+            raise HttpError(400, "Slug manquant")
+
+        query = (
+            Microtik.objects
+            .prefetch_related('profils','clients')
+            .select_related("subscription")
+            .filter(slug=microtik_slug)
+        )
+
+        if request.user.user_type == User.OWNERMICROTIK:
+            query = query.filter(owner=request.user)
+
+        microtik = query.first()
+
+        if not microtik:
+            raise HttpError(404, "Aucun microtik trouvé")
+
+        request.microtik = microtik
+        return True
+    
+
+class HasValidVpn(BasePermission):
+    def has_permission(self, request):
+        microtik = getattr(request, "microtik", None)
+
+        if not microtik:
+            raise HttpError(500, "Microtik non chargé")
+
+        vpn = microtik.subscription
+
+        if not (vpn and vpn.validation):
+            raise HttpError(403, "Aucun abonnement VPN valide")
+
+        request.vpn = vpn
+        return True
+    
+
 class GlobalAuth(HttpBearer):
-    def __init__(self,permissions=[]):
-        self.permissions = permissions
+    openapi_name = "JWT"
+
+    def __init__(self, permissions=None):
+        self.permissions = permissions or []
         super().__init__()
 
     def authenticate(self, request, token):
-        if not token: 
-            return None  
+        if not token:
+            return None
+
         try:
             decoder_token = decode_token(
                 token=token,
                 token_type=TokenTypes.ACCESS,
                 verify=True
-                    )
-        except Exception:
-            raise HttpError(
-                status_code=401,
-                message="Votre token a expirer"
             )
+        except Exception:
+            raise HttpError(401, "Token expiré")
 
         user_id = decoder_token.get('user_id')
         user = User.objects.filter(pk=user_id).first()
-        request.user = user
-        # if self.permissions and user.user_type not in self.permissions:
-        #     raise HttpError(
-        #         status_code=403,  
-        #         message="Permission refusée"
-        #     )
+
         if not user:
-            raise HttpError(
-                status_code= HTTPStatus.FORBIDDEN
-            )
-        return user
+            raise HttpError(403, "Utilisateur introuvable")
 
+        request.user = user
 
-class SubscriptionVpn:
-    def __call__(self, request):
-        microtik = request.microtik
-        
-        vpn = microtik.suscription_vpn
-        if not (vpn and vpn.validation):
-            raise HttpError(403, "Abonnement VPN invalide ou expiré")
-        
-        request.vpn = vpn
+        for permission_class in self.permissions:
+            permission = permission_class()
+            if not permission.has_permission(request):
+                raise HttpError(403, "Permission refusée")
 
-        return request.user 
-
-
-class MicrotikAuth:
-    def __call__(self, request:HttpRequest):
-        microtik_slug = request.resolver_match.kwargs.get("microtik_slug", "")
-        if not microtik_slug:
-            raise HttpError(400, "Le slug est obligatoire")
-
-        user = request.user 
-        
-        query = (
-            Microtik.objects
-            .prefetch_related('profils','clients')
-            .select_related("suscription_vpn")
-            .filter(slug=microtik_slug)
-            )
-        print("******************")
-        print(user)
-        print(user.user_type)
-        if user.user_type == User.OWNERMICROTIK:
-            microtik = query.filter(owner=user)
-
-        if not microtik:
-            raise HttpError(404, "Aucun microtik trouvé")
-
-        request.microtik = microtik.first()
-        
         return user

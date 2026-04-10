@@ -119,8 +119,8 @@ class MicrotikOutRetrieveSchemas(Schema):
     commission_rate: float
     is_online: bool
     admin_blocked: bool
-    subscription: SubscriptionVpnOutSchema
-    profils: List[ProfilOutSchema]
+    subscription: SubscriptionVpnOutSchema | None = None
+    profils: List[ProfilOutSchema] | None = None
     
     class Config:
         from_attributes = True
