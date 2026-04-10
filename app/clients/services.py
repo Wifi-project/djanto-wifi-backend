@@ -1,9 +1,9 @@
+from __future__ import annotations
 from datetime import datetime
 from django.utils import timezone
 from ninja.errors import HttpError
 from http import HTTPStatus
 from app.clients.models import InfoDeposit, Client
-from __future__ import annotations
 from typing import TYPE_CHECKING
 from django.db import transaction
 from app.utils.def_utils import connect_microtik, generer_code_unique, creer_ticket_code
