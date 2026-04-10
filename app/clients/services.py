@@ -3,6 +3,7 @@ from django.utils import timezone
 from ninja.errors import HttpError
 from http import HTTPStatus
 from app.clients.models import InfoDeposit, Client
+from __future__ import annotations
 from typing import TYPE_CHECKING
 from django.db import transaction
 from app.utils.def_utils import connect_microtik, generer_code_unique, creer_ticket_code
@@ -99,7 +100,7 @@ def notif_url(data:str) -> dict:
 class ClientService:
 
     @classmethod
-    def create_client_service(microtik:"Microtik",profil_slug,user_numbers):
+    def create_client_service(microtik:Microtik,profil_slug,user_numbers):
         profil = microtik.profils.filter(slug=profil_slug)
         if not microtik:
             raise HttpError(
@@ -143,13 +144,13 @@ class ClientService:
 
 
     @classmethod
-    def list_client_service(microtik:"Microtik") -> list[User]:
+    def list_client_service(microtik:Microtik) -> list[User]:
         clients = microtik.clients.all()
         return clients
 
 
     @classmethod
-    def retrieve_client_service(microtik:"Microtik",client_slug:str) -> User:
+    def retrieve_client_service(microtik:Microtik,client_slug:str) -> User:
         client = Client.objects.select_related("microtik").filter(
             microtik = microtik,
             slug = client_slug
@@ -164,7 +165,7 @@ class ClientService:
 
 
     @classmethod
-    def blocked_unlocked_client_service(microtik:"Microtik",user_slug:str,is_desable:bool, vpn:SubscriptionVpn):
+    def blocked_unlocked_client_service(microtik:Microtik,user_slug:str,is_desable:bool, vpn:SubscriptionVpn):
 
         client = microtik.clients.filter(slug=user_slug).first()
         if not client:
@@ -206,7 +207,7 @@ class ClientService:
 
 
     @classmethod
-    def actif_list_client_service(microtik:"Microtik", vpn:SubscriptionVpn):
+    def actif_list_client_service(microtik:Microtik, vpn:SubscriptionVpn):
         
         connection = connect_microtik(
             ip=vpn.vpn_ip,
@@ -235,7 +236,7 @@ class ClientService:
 
 
     @classmethod
-    def no_expired_client_service(microtik:"Microtik",vpn:SubscriptionVpn):
+    def no_expired_client_service(microtik:Microtik,vpn:SubscriptionVpn):
         connection = connect_microtik(
             ip=vpn.vpn_ip,
             username=vpn.vpn_username,
