@@ -1,6 +1,6 @@
 from django.db import models
 from app.commone.models import Base
-from app.microtiks.models import Microtik,Profil
+from app.microtiks.models import Microtik
 
 
 class Status(models.TextChoices):
@@ -9,15 +9,36 @@ class Status(models.TextChoices):
 
 
 class Client(Base):
+    SYSTEME = "systeme"
+    OWNER = "owner"
+    IMPORT = "import"
+
+    generate_choice = (
+        (SYSTEME,"generer par le systeme",),
+        (OWNER, "generer par le owner",),
+        (IMPORT,"importer par csv",),
+    )
+
     phone_number = models.CharField(max_length=10, null=True,blank=True)
     code_username = models.CharField(max_length=50, null=False,blank=False)
     code_password = models.CharField(max_length=50, null=False,blank=False)
-    microtik = models.ForeignKey(Microtik, on_delete=models.CASCADE, related_name='clients', related_query_name='clients')
     limit_uptime = models.CharField(max_length=50)
     profil_name = models.CharField(max_length=50)
-    info_deposit = models.ForeignKey("InfoDeposit",on_delete=models.CASCADE, related_name="client_deposit" )
-    generate = models.BooleanField(default=False)
-    status = models.BooleanField(default=Status.ACTIVE, choices=Status)
+    microtik = models.ForeignKey(
+        Microtik, 
+        on_delete=models.CASCADE, 
+        related_name='clients', 
+        related_query_name='clients'
+        )
+    info_deposit = models.ForeignKey(
+        "InfoDeposit",
+        on_delete=models.CASCADE, 
+        related_name="client_deposit",
+        null=True
+        )
+    generate = models.CharField(max_length=20, choices=generate_choice, default=SYSTEME)
+    status = models.CharField(max_length=50,default=Status.ACTIVE, choices=Status)
+    is_sold = models.BooleanField(default=False)
 
     def __str__(self):
         return self.phone_number

@@ -4,17 +4,13 @@ from ninja.errors import HttpError
 from http import HTTPStatus
 from app.microtiks.schemas import ProfilDuratinEnum
 from app.utils.def_utils import connect_microtik, profil_duration, check_property_microtik
-
+from app.subscriptions.models import SubscriptionVpn
 
 def create_microtik_service(data:dict[str,str|int], user:User) -> Microtik:
     return Microtik.objects.create(**data,owner=user)
 
 
-def update_microtik_service(slug:str,data:dict[str,str|int], user:User) -> Microtik:
-    microtik = check_property_microtik(
-        microtik_slug=slug,
-        user=user
-    )
+def update_microtik_service(microtik:Microtik,data:dict[str,str|int], user:User) -> Microtik:
 
     for key,value in data.items():
         setattr(microtik, key,value)
@@ -24,17 +20,12 @@ def update_microtik_service(slug:str,data:dict[str,str|int], user:User) -> Micro
 
 
 def retrieve_microtik_service(microtik_slug, user):
-
-    return check_property_microtik(
-        microtik_slug=microtik_slug,
-        user=user
-    )
-
+    pass
 
 def check_connexion(data:dict):
-    ip = data.get("ip","")
-    username = data.get("username","")
-    password = data.get("password","")
+    ip = data.get("vpn_ip","")
+    username = data.get("vpn_username","")
+    password = data.get("vpn_password","")
     if not ip or not username or not password:
         raise HttpError(
             status_code=HTTPStatus.BAD_REQUEST,
@@ -43,34 +34,24 @@ def check_connexion(data:dict):
     connection = connect_microtik(ip=ip,username=username,password=password)
     try:
         api = connection.get_api()
-        return {"status":True, "message":"Connexion etablie avec success."}
+        return {"status":"success", "message":"Connexion etablie avec success."}
     except Exception as e:
-        return {"status":False, "message":f"Erreur de connexion. \n *** {e}"}
+        return {"status":"failled", "message":f"Erreur de connexion. \n *** {e}"}
     finally:
         try: connection.disconnect()
         except: pass
 
 
-def create_profil_service(data:dict, microtik_slug:str, user:User) -> Profil:
-    microtik = check_property_microtik(
-        microtik_slug=microtik_slug,
-        user=user
-    )
-
-    if not microtik:
-        raise HttpError(
-            status_code=HTTPStatus.BAD_REQUEST,
-            message="Aucun microtik n'exist avec ce slug."
-        )
+def create_profil_service(data:dict, microtik:Microtik, vpn:SubscriptionVpn) -> Profil:
     
-    type_session = data.pop('type_session')
+    type_session = data.pop('type_session','h')
     duration = data.pop('duration',1)
 
     session_timeout = profil_duration(duration=duration, type_session=type_session)
     connection = connect_microtik(
-        ip=microtik.ip,
-        username=microtik.username,
-        password=microtik.password
+        ip=vpn.vpn_ip,
+        username=vpn.vpn_username,
+        password=vpn.vpn_password
         )
     
     api = connection.get_api()
@@ -94,12 +75,8 @@ def create_profil_service(data:dict, microtik_slug:str, user:User) -> Profil:
 
 
 
-def update_profil_service(microtik_slug:str,user:User,slug_profil:str, data:dict) -> Profil:
-    microtik = check_property_microtik(
-        microtik_slug=microtik_slug,
-        user=user
-    )
-    
+def update_profil_service(microtik:Microtik,slug_profil:str, data:dict, vpn:SubscriptionVpn) -> Profil:
+
     profil = microtik.profils.filter(slug=slug_profil).first()
     if not profil: 
         raise HttpError(
@@ -107,17 +84,17 @@ def update_profil_service(microtik_slug:str,user:User,slug_profil:str, data:dict
             message="Aucun profil correspondant a ce slug."
         )
     
-    type_session = data.pop('type_session', "")
-    duration = data.pop('duration',0)
+    type_session = data.pop('type_session')
+    duration = data.pop('duration')
     
     session_timeout = None
     if type_session and duration:
         session_timeout = profil_duration(duration=duration, type_session=type_session)
 
     connection = connect_microtik(
-        ip=microtik.ip,
-        username=microtik.username,
-        password=microtik.password
+        ip=vpn.vpn_ip,
+        username=vpn.vpn_username,
+        password=vpn.vpn_password
         )
     api = connection.get_api()
     profiles = api.get_resource('/ip/hotspot/user/profile')
@@ -144,19 +121,15 @@ def update_profil_service(microtik_slug:str,user:User,slug_profil:str, data:dict
                 setattr(profil, key,value)
             profil.save()
 
-            return {"status": True, "message": "profile modifie avec success"}
+            return {"status": "success", "message": "profile modifie avec success"}
         except Exception as e:
-            return {"status": False, "message": f"la modification du profil a echoue {e}"}
+            return {"status": "failled", "message": f"la modification du profil a echoue {e}"}
         finally:
             connection.disconnect()
 
 
 
-def delete_profil_service(microtik_slug:str,profil_slug:str, user:User):
-    microtik = check_property_microtik(
-        microtik_slug=microtik_slug,
-        user=user 
-    )
+def delete_profil_service(microtik:Microtik,profil_slug:str,vpn:SubscriptionVpn):
     
     profil = microtik.profils.filter(slug=profil_slug).first()
     if not profil: 
@@ -166,9 +139,9 @@ def delete_profil_service(microtik_slug:str,profil_slug:str, user:User):
         )
     
     connection = connect_microtik(
-        ip=microtik.ip,
-        username=microtik.username,
-        password=microtik.password
+        ip=vpn.vpn_ip,
+        username=vpn.vpn_username,
+        password=vpn.vpn_password
         )
     
     api = connection.get_api()
@@ -176,9 +149,9 @@ def delete_profil_service(microtik_slug:str,profil_slug:str, user:User):
     try:
         profiles.remove(name=profil.name)
         profil.delete()
-        return {"status": True, "message": "profile supprime avec success"}
+        return {"status": "success", "message": "profile supprime avec success"}
     except Exception as e:
-        return {"status": False, "message": "la suppression du profil a echoue"}
+        return {"status": "failled", "message": "la suppression du profil a echoue"}
     finally:
         connection.disconnect()
 
@@ -189,8 +162,6 @@ def profil_liste_service(microtik_slug:str):
     profil = microtik.profils.all()
 
     return profil
-
-
 
 
 

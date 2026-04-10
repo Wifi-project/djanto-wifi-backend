@@ -25,7 +25,7 @@ def user_creation(data:dict=[str,str | bool] ):
     return user
 
 
-def update_user(user:User,data:dict=[str,str | bool]):
+def update_user_service(user:User,data:dict=[str,str | bool]):
     
     for attr, value in data.items():
         setattr(user, attr, value)

@@ -12,6 +12,9 @@ class PaymentStatus(str, Enum):
 class PaymentMethod(str, Enum):
     OM = "OM"  
     MOMO = "MOMO" 
+    PAYCARD = "PAYCARD"
+    SOUTRA_MONEY = "SOUTRA_MONEY"
+
 
 
 class InfoDepositIn(Schema):
@@ -36,11 +39,14 @@ class MicrotikNameOut(Schema):
 
 class ClientIn(Schema):
     profil_slug: str
-    user_numbers : int = Field(le=200, description="maximum 200")
+    user_numbers : int = Field(le=1000, description="maximum 1000")
+
 
 class ClientCreateResponse(Schema):
     username: str 
     password: str 
+    profile_name: str
+    limit_uptime: str
     
 
 class ClientOut(Schema):
@@ -51,6 +57,8 @@ class ClientOut(Schema):
     limit_uptime:str
     profil_name:str
     microtik: MicrotikNameOut
+    generate: str 
+    is_sold: bool
     status: str
     created_at: datetime | None = None
 

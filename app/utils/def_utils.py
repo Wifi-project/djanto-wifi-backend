@@ -73,10 +73,12 @@ def creer_ticket_code(
         limit_uptime:str, 
         comment:str) -> dict:
 
+    vpn = microtik.suscription_vpn
+
     connection = connect_microtik(
-        ip=microtik.ip,
-        username=microtik.username,
-        password=microtik.password
+        ip=vpn.vpn_ip,
+        username=vpn.vpn_username,
+        password=vpn.vpn_password
         )
 
     api = connection.get_api()
@@ -91,13 +93,13 @@ def creer_ticket_code(
                 limit_uptime = limit_uptime,
                 comment=comment
             )
-        return {"status":True,"message":f"success"}
+        return {"status":"success","message":f"success"}
     
     except Exception as e:
         if "already exists" in str(e).lower():
             pass
 
-        return {"status":False,"message":f"Erreur MikroTik : {e}"}
+        return {"status":"failled","message":f"Erreur MikroTik : {e}"}
     
     finally:
         connection.disconnect()

@@ -5,92 +5,39 @@ from decimal import Decimal
 from django.utils import timezone
 from datetime import timedelta
 
+from app.subscriptions.models import SubscriptionVpn
+
+
 class Status(models.TextChoices):
     DISABLE = "disable", "desactiver"
     ACTIVE = "active", "activer et fonctionne"
 
 
 
-class SubscriptionCategorie(Base):
-    POURCENTAGE = "pourcentage"
-    MENSUAL = "mensual"
-    TRIMESTRIEL = "trimestriel"
-    ANNUEL = "annuel"
-
-    choice = (
-        (POURCENTAGE, "pourcentage",),
-        (MENSUAL, "Mensuel",),
-        (TRIMESTRIEL, "Trimestiel",),
-        (ANNUEL,"Annul",),
-    )
-
-    name = models.CharField(max_length=50, default=POURCENTAGE)
-    price = models.DecimalField(max_digits=10, decimal_places=2)
-
-
-class Subscription(Base):
-    type = models.ForeignKey(
-        SubscriptionCategorie,
-        on_delete=models.PROTECT
-    )
-    expire_at = models.DateField(null=True, blank=True)
-
-    def save(self,*args, **kwargs):
-        if self.type == SubscriptionCategorie.MENSUAL:
-            self.expire_at = timezone.now() + timedelta(days=30)
-        elif self.type == SubscriptionCategorie.TRIMESTRIEL:
-            self.expire_at = timezone.now() + timedelta(days=90)
-        elif self.type == SubscriptionCategorie.ANNUEL:
-            self.expire_at = timezone.now() + timedelta(days=360)
-        else:
-            self.expire_at = None
-
-        return super().save(*args,**kwargs)
-    
-    def is_active(self):
-        if self.type == SubscriptionCategorie.POURCENTAGE:
-            return True
-        return self.expire_at > timezone.now()
-
-
-
 class Microtik(Base):
-    VPN = "vpn",
-    FREEMIUM = "freemium", 
+    name = models.CharField(max_length=50)
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="microtiks")
+    
+    subscription = models.OneToOneField(
+        SubscriptionVpn, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        related_name="suscription_vpn"
+        )
+    wallet_balance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    users_count = models.BigIntegerField(default=0)
+    
+    commission_rate = models.FloatField(default=15.0, help_text="Pourcentage prélevé sur les ventes")
 
-    FacturationType = (
-        (VPN, "abonement vpn",),
-        (FREEMIUM, "pas d'abonement type juste pourcentage.",),
-    )
-
-    name = models.CharField(max_length=50, null=False)
-    description = models.TextField()
-    ip = models.CharField(max_length=50, null=False)
-    username = models.CharField(max_length=50, null=False)
-    password = models.CharField(max_length=50, null=False)
-    owner = models.ForeignKey(User,on_delete=models.CASCADE, related_name="microtiks")
-    sold = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    users = models.BigIntegerField(default=0)
-    status = models.CharField(max_length=50, default=Status.ACTIVE)
-    admin_blocked = models.CharField(max_length=50, default=Status.ACTIVE)
-    # pourcentage = models.FloatField(default=15)
-    # facturation_type = models.CharField(max_length=50,choices=FacturationType ,default=FREEMIUM)
-    # suscription = models.ForeignKey(
-    #     Subscription, 
-    #     on_delete=models.PROTECT, 
-    #     related_name="suscriptions"
-    #     )
-
-
-    @property
-    def get_amount_available_windrawal(self):
-        pass
-    #     pourcentage = self.pourcentage
-    #     return Decimal(self.sold * (pourcentage/100) )
-
+    is_online = models.BooleanField(default=True)
+    admin_blocked = models.BooleanField(default=False)
 
     def __str__(self):
-        return self.name
+        return f"{self.name} ({self.owner.username})"
+    
+    @property
+    def amount_available_windrawal(self):
+        return float(00.0)
 
 
 

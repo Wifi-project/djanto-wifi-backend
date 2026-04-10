@@ -4,6 +4,7 @@ from app.microtiks.models import Microtik,Profil
 from decimal import Decimal
 from typing import List
 from enum import Enum
+from app.subscriptions.schemas import SubscriptionVpnOutSchema
 
 class ProfilDuratinEnum(str,Enum):
     MINUTES = "m"
@@ -34,6 +35,7 @@ class MikroTikRateLimit(str, Enum):
 class CurrencyEnum(str, Enum):
     GNF = "gnf"
 
+#------------------PROFIL------------------#
 
 class ProfilBase(Schema):
     name: str
@@ -68,29 +70,29 @@ class ProfilInSchema(ProfilBase):
 
 
 
+#--------------SUBSCRIPTION------------------#
+
+
+
+
+
+#-----------------MICROTIK---------------------#
 
 class MicrotikInSchemas(ModelSchema):
     class Meta:
         model = Microtik
         fields = [
-            "name",
-            "description",
-            "ip",
-            "username",
-            "password",
+            "name"
         ]
 
-class MicrotikCheckSchemas(ModelSchema):
-    class Meta:
-        model = Microtik
-        fields = [
-            "ip",
-            "username",
-            "password",
-        ]
+class MicrotikCheckSchemas(Schema):
+    """Utiliser pour le check de connexion du microtik"""
+    vpn_ip: str
+    vpn_username: str
+    vpn_password: str
 
 class MicrotikCheckResponseSchemas(Schema):
-    status: bool
+    status: str
     message: str
 
 
@@ -100,7 +102,10 @@ class MicrotikOutListSchemas(ModelSchema):
         fields = [
             "slug",
             "name",
-            "status"
+            "wallet_balance",
+            "users_count",  
+            "is_online",
+            "admin_blocked"
         ]
         read_only_fields = fields
 
@@ -108,36 +113,20 @@ class MicrotikOutListSchemas(ModelSchema):
 class MicrotikOutRetrieveSchemas(Schema):
     slug:str
     name: str
-    description: str
-    ip:str
-    username: str 
-    password: str
-    status: StatusEnum
-    sold: Decimal
-    users: int 
+    wallet_balance: Decimal
+    amount_available_windrawal: Decimal
+    users_count: int
+    commission_rate: float
+    is_online: bool
+    admin_blocked: bool
+    subscription: SubscriptionVpnOutSchema
     profils: List[ProfilOutSchema]
     
     class Config:
         from_attributes = True
 
 
-# class MicrotikUpdateSchemas(ModelSchema):
-#     class Meta:
-#         model = Microtik
-#         fields = [
-#             "name",
-#             "description",
-#             "ip",
-#             "username",
-#             "password",
-#             "status",
-#         ]
-
 class MicrotikUpdateSchemas(Schema):
     name:str | None = None
-    description: str | None = None
-    ip: str | None = None
-    username: str | None = None
-    password: str | None = None
-    status: StatusEnum | None = None
+    is_online: bool | None = None
 

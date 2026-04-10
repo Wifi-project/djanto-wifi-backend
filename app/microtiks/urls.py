@@ -1,11 +1,13 @@
 from ninja import Router
-from ninja.errors import HttpError
-from http import HTTPStatus
 from app.users.models import User
 from ninja.pagination import paginate,LimitOffsetPagination
-from app.users.deps import GlobalAuth
+from app.users.deps import (
+    GlobalAuth, 
+    SubscriptionVpn, 
+    MicrotikAuth
+    )
 from typing import List
-from app.microtiks.models import Microtik,Profil
+from app.microtiks.models import Microtik
 from app.microtiks.services import (
     create_microtik_service,
     update_microtik_service,
@@ -27,7 +29,6 @@ from app.microtiks.schemas import (
     ProfilOutSchema,
     ProfilUpdateSchema
 )
-from ninja_simple_jwt.auth.ninja_auth import HttpJwtAuth
 
 
 microtik_router = Router(tags=["Microtik"], auth=[GlobalAuth()])
@@ -54,25 +55,25 @@ def check_connexion(request,data:MicrotikCheckSchemas) -> MicrotikCheckResponseS
 
 
 @microtik_router.patch(
-    "/update/{slug}", 
+    "/update/{microtik_slug}", 
     response=MicrotikOutListSchemas,
     description="Modifier un microtik",
-    auth=[GlobalAuth()]  
+    auth=[MicrotikAuth()]  
 )
-def update(request, data: MicrotikUpdateSchemas, slug: str) -> MicrotikOutListSchemas:
-    user = request.user    
+def update(request, data: MicrotikUpdateSchemas, microtik_slug: str) -> MicrotikOutListSchemas:
+    user = request.user   
+    microtik = request.microtik
     return update_microtik_service(
         data=data.model_dump(exclude_unset=True), 
         user = user,
-        slug=slug)
+        microtik=microtik)
 
 
 @microtik_router.get(
         "/list/", 
         response=list[MicrotikOutListSchemas], 
         description="afficher la liste des microtiks appartenant a la personne connecter," \
-        "si la personne connecter est un admin il verra la liste de tous les microtiks existant.",
-        auth=GlobalAuth()
+        "si la personne connecter est un admin il verra la liste de tous les microtiks existant."
         )
 @paginate(LimitOffsetPagination, papage_size=10)
 def list_microtik(request):
@@ -87,15 +88,11 @@ def list_microtik(request):
 @microtik_router.get(
         "/retrieve/{microtik_slug}/", 
         response=MicrotikOutRetrieveSchemas,
-        auth=GlobalAuth([]),
+        auth=[GlobalAuth(),MicrotikAuth()],
         description="afficher les details d'un microtik."
         )
-def retrieve_microtik(request,microtik_slug:str) -> MicrotikOutRetrieveSchemas:
-    user = request.user
-    return retrieve_microtik_service(
-        microtik_slug=microtik_slug,
-        user=user
-    )
+def retrieve_microtik(request) -> MicrotikOutRetrieveSchemas:
+    return request.microtik
 
 
 
@@ -103,46 +100,47 @@ def retrieve_microtik(request,microtik_slug:str) -> MicrotikOutRetrieveSchemas:
 
 @microtik_router.post(
         '/{microtik_slug}/profile-create/', 
+        auth=[MicrotikAuth(), SubscriptionVpn()],
         response=MicrotikCheckResponseSchemas, 
         description="creation des profil pour un microtik"
         )
 def profile_create(request,data:ProfilInSchema, microtik_slug:str) -> MicrotikCheckResponseSchemas:
-    user = request.user
+    vpn = request.vpn
     return create_profil_service(
         data=data.model_dump(),
         microtik_slug=microtik_slug,
-        user = user
+        vpn = vpn
         )
 
 
 @microtik_router.patch(
         '/{microtik_slug}/update-profile/{slug_profil}/', 
+        auth=[MicrotikAuth(), SubscriptionVpn()],
         response=MicrotikCheckResponseSchemas,
         description="La mise a jour du profile microtik"
         )
-def profile_update(request,data:ProfilUpdateSchema,microtik_slug:str,slug_profil:str) -> MicrotikCheckResponseSchemas:
-    user = request.user 
+def profile_update(request,data:ProfilUpdateSchema,slug_profil:str) -> MicrotikCheckResponseSchemas:
 
     return update_profil_service(
-        microtik_slug=microtik_slug,
+        microtik=request.microtik,
         slug_profil=slug_profil, 
-        user = user,
+        vpn = request.vpn,
         data=data.model_dump(exclude_unset=True)
         )
 
 
 @microtik_router.delete(
         '/{microtik_slug}/delete-profil/{slug_profil}/',
+        auth=[MicrotikAuth(), SubscriptionVpn()],
         response=MicrotikCheckResponseSchemas,
         description="Supprimer un profil"
         )
-def delete_profil(request,microtik_slug:str,slug_profil:str) -> MicrotikCheckResponseSchemas:
-    user = request.user 
+def delete_profil(request,slug_profil:str) -> MicrotikCheckResponseSchemas:
 
     return delete(
-        microtik_slug=microtik_slug,
+        microtik_slug=request.microtik,
         profil_slug=slug_profil,
-        user = user
+        user = request.vpn
     )
 
 

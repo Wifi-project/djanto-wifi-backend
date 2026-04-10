@@ -13,7 +13,7 @@ from app.users.schemas import (
     UserRetrieveScheama
     )
 from app.users.services import (
-    user_creation, update_user as update_user_service,
+    user_creation, update_user_service,
     reset_password,retrive_user_service
     )
 from app.users.deps import GlobalAuth
@@ -76,10 +76,11 @@ def create_user(request,user:UserInSchema) -> UserOutSchema:
     return user_creation(data=user.model_dump())
 
 
-@user_router.patch('profile/users/{slug}',response=UserOutSchema, auth=GlobalAuth([]))
+@user_router.patch('/profile/users/{slug}',response=UserOutSchema, auth=GlobalAuth([]))
 def update_user(request,slug,data:UserUpdate)-> UserOutSchema:
+    user = User.objects.filter(slug=slug).first()
     return update_user_service(
-                slug=slug,
+                user=user,
                 data=data.model_dump(exclude_unset=True)
                 )
 
