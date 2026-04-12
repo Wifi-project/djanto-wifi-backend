@@ -58,6 +58,12 @@ class HasValidVpn(BasePermission):
         return True
     
 
+class Auth(BasePermission):
+    def has_permission(self, request):
+        return True
+    
+
+
 class GlobalAuth(HttpBearer):
     openapi_name = "JWT"
 
