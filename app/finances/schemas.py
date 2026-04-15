@@ -36,7 +36,8 @@ class InfoDepositBase(Schema):
 class InfoDepositOut(InfoDepositBase):
     slug: str
     status: DepositStatus
-    created_at: str
+    limit_uptime: str 
+    created_at: datetime
 
     class Config:
         from_attributes = True

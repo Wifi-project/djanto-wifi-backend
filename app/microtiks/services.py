@@ -3,7 +3,7 @@ from app.users.models import User
 from ninja.errors import HttpError
 from http import HTTPStatus
 from app.microtiks.schemas import ProfilDuratinEnum
-from app.utils.def_utils import connect_microtik, profil_duration, check_property_microtik
+from app.utils.def_utils import connect_microtik, profil_duration
 from app.subscriptions.models import SubscriptionVpn
 
 def create_microtik_service(data:dict[str,str|int], user:User) -> Microtik:
@@ -22,15 +22,13 @@ def update_microtik_service(microtik:Microtik,data:dict[str,str|int], user:User)
 def retrieve_microtik_service(microtik_slug, user):
     pass
 
-def check_connexion(data:dict):
-    ip = data.get("vpn_ip","")
-    username = data.get("vpn_username","")
-    password = data.get("vpn_password","")
-    if not ip or not username or not password:
-        raise HttpError(
-            status_code=HTTPStatus.BAD_REQUEST,
-            message="Vous devez renseigner le ip, username, password obligatoirement"
-        )
+def check_connexion(microtik:Microtik):
+    vpn = microtik.subscription 
+    
+    ip = vpn.vpn_ip
+    username = vpn.vpn_username
+    password = vpn.vpn_password
+
     connection = connect_microtik(ip=ip,username=username,password=password)
     try:
         api = connection.get_api()

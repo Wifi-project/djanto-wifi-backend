@@ -2,6 +2,7 @@ from __future__ import annotations
 from datetime import datetime
 from django.utils import timezone
 from ninja.errors import HttpError
+from asgiref.sync import sync_to_async
 from http import HTTPStatus
 from app.clients.models import InfoDeposit, Client
 from typing import TYPE_CHECKING
@@ -10,36 +11,50 @@ from app.utils.def_utils import connect_microtik, generer_code_unique, creer_tic
 from app.users.models import User
 from django.db import transaction
 from app.subscriptions.models import SubscriptionVpn
+from app.api_extern.adapterPayement import AdapterPayement
 
 if TYPE_CHECKING:
     from app.microtiks.models import Microtik
 
 
 
-def deposit(microtik_slug:str,data:dict):
-    microtik = Microtik.objects.prefetch_related("profils").filter(slug = microtik_slug).first()
+
+async def deposit(microtik_slug: str, data: dict):
+    from app.microtiks.models import Microtik
+    
+    microtik = await Microtik.objects.prefetch_related("profils").filter(slug=microtik_slug).afirst()
     if not microtik:
         raise HttpError(
             status_code=HTTPStatus.BAD_REQUEST,
-            message="aucun microtik exitant avec ce slug."
+            message="aucun microtik existant avec ce slug."
         )
-    profil_slug = data.get("profil_slug","") 
-    profil = microtik.profils.filter(slug=profil_slug).first()
+    
+    profil_slug = data.pop("profil_slug", "") 
+    profil = await microtik.profils.filter(slug=profil_slug).afirst()
     if not profil:
         raise HttpError(
             status_code=HTTPStatus.BAD_REQUEST,
             message="Aucun slug correspond a ce profil."
         )
-    #appel api pour initier le depot
-    #le transaction_id doit etre le slug du deposit.
-    InfoDeposit.objects.create(
+    
+    adapter = AdapterPayement(code="djomy")
+    
+    reference = await sync_to_async(InfoDeposit.objects.create)(
         **data, 
         microtik=microtik,
         profil_name=profil.name,
         limit_uptime=profil.rate_limit,
         amount=profil.price
-        )
-    return {"status":"success", "message":"Retrait initier avec success."}
+    )
+    
+    response = await adapter.payement(
+        amount=profil.price,
+        method=data.get("paymentMethod"),
+        number=data.get("phone_number"),
+        reference=reference.slug
+    )
+    
+    return response
 
 
 @transaction.atomic()
@@ -99,7 +114,7 @@ def notif_url(data:str) -> dict:
         
 class ClientService:
 
-    @classmethod
+    @staticmethod
     def create_client_service(microtik:Microtik,profil_slug,user_numbers):
         profil = microtik.profils.filter(slug=profil_slug)
         if not microtik:
@@ -143,13 +158,30 @@ class ClientService:
             ]
 
 
-    @classmethod
+    @staticmethod
+    def csv_save_service(reader:dict, microtik:Microtik):
+        reader_lower = {k.lower(): v for k, v in reader.items()}
+
+        model_list = [Client(
+            code_username = row.get("username",""), 
+            code_password = row.get("password",""), 
+            profil_name = row.get("profile",""),
+            limit_uptime = row.get("date limit",""),
+            generate = Client.IMPORT,
+            microtik = microtik
+            ) for row in reader_lower]
+        
+        clients = Client.objects.bulk_create(model_list,return_defaults=True)
+        return clients
+
+
+    @staticmethod
     def list_client_service(microtik:Microtik) -> list[User]:
         clients = microtik.clients.all()
         return clients
 
 
-    @classmethod
+    @staticmethod
     def retrieve_client_service(microtik:Microtik,client_slug:str) -> User:
         client = Client.objects.select_related("microtik").filter(
             microtik = microtik,
@@ -164,7 +196,7 @@ class ClientService:
         return client
 
 
-    @classmethod
+    @staticmethod
     def blocked_unlocked_client_service(microtik:Microtik,user_slug:str,is_desable:bool, vpn:SubscriptionVpn):
 
         client = microtik.clients.filter(slug=user_slug).first()
@@ -206,7 +238,7 @@ class ClientService:
             return {"status":"success", "message":"slug de ce client n'exist pas sur le microtik."}
 
 
-    @classmethod
+    @staticmethod
     def actif_list_client_service(microtik:Microtik, vpn:SubscriptionVpn):
         
         connection = connect_microtik(
@@ -235,7 +267,7 @@ class ClientService:
         return users_list
 
 
-    @classmethod
+    @staticmethod
     def no_expired_client_service(microtik:Microtik,vpn:SubscriptionVpn):
         connection = connect_microtik(
             ip=vpn.vpn_ip,

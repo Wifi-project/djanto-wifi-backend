@@ -1,6 +1,6 @@
 from ninja import Router
 from ninja.pagination import LimitOffsetPagination, paginate
-
+from app.api_extern.adapterPayement import AdapterPayement
 from app.subscriptions.models import SubscriptionCategorieVpn,SubscriptionVpn
 from app.subscriptions.schemas import (
     SubscriptionCategorieIntSchema,
@@ -9,8 +9,8 @@ from app.subscriptions.schemas import (
     SubscriptionVpnInSchema,
     SubscriptionResponse
     )
-from app.users.deps import GlobalAuth
-from app.subscriptions.services import update_subscrib_vpn
+from app.users.deps import GlobalAuth,Auth,IsOwnerMicrotik,HasValidVpn
+from app.subscriptions.services import update_subscrib_vpn,subscrition_abonnement_service
 
 
 subscription = Router(tags=["Subscription-Vpn"], auth=GlobalAuth())
@@ -36,8 +36,14 @@ def update(request,slug,data:SubscriptionCategorieUpdateSchema) -> SubscriptionC
 
 #------------------------- Subscription -------------------------------#
 
-@subscription.post("/", response=SubscriptionResponse)
-def suscrib_abonement(request,data:SubscriptionVpnInSchema) -> SubscriptionResponse:
-    #call api de paiement
-    return {"status":"success", "message":"retrait pour l'abonnement initier avec success"}
+@subscription.post(
+        "/{microtik_slug}",
+        # response=SubscriptionResponse,
+        auth=GlobalAuth(permissions=[Auth,IsOwnerMicrotik])
+        )
+async def suscrib_abonement(request,data:SubscriptionVpnInSchema,microtik_slug:str) -> SubscriptionResponse:
+    return await subscrition_abonnement_service(
+        data=data.model_dump(),
+        microtik=request.microtik
+        )
 

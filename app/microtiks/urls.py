@@ -3,6 +3,7 @@ from app.users.models import User
 from ninja.pagination import paginate,LimitOffsetPagination
 from app.users.deps import (
     GlobalAuth, 
+    Auth,
     HasValidVpn, 
     IsOwnerMicrotik
     )
@@ -46,12 +47,13 @@ def create(request,data:MicrotikInSchemas):
 
 
 @microtik_router.post(
-        "/check-connexion", 
+        "/check-connexion/{microtik_slug}", 
         response=MicrotikCheckResponseSchemas, 
+        auth=GlobalAuth(permissions=[Auth,IsOwnerMicrotik,HasValidVpn]),
         description="Verifier la connexion avec le microtik voir si les infos saisies sont exactent"
         )
-def check_connexion(request,data:MicrotikCheckSchemas) -> MicrotikCheckResponseSchemas:
-    return check_connexion_service(data=data.model_dump())
+def check_connexion(request,microtik_slug:str) -> MicrotikCheckResponseSchemas:
+    return check_connexion_service(microtik=microtik)
 
 
 @microtik_router.patch(

@@ -5,8 +5,8 @@ from app.finances.models import GainSysteme, Windraw
 from app.microtiks.models import Microtik
 
 
-def info_deposit_list(microtik_slug:str,owner:User):
-    return InfoDeposit.objects.filter(microtik__slug=microtik_slug)
+def info_deposit_list(microtik:Microtik):
+    return InfoDeposit.objects.filter(microtik=microtik)
 
 
 def info_deposit_retrive(microtik_slug:str,deposit_slug:str,owner:User):

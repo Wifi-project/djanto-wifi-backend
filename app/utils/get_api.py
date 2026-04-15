@@ -1,20 +1,43 @@
-# import httpx
+import httpx
 
 
-# async def call_api_post(url:str,payload:dict,token:str = None):
+async def post_data(url:str,payload:dict,token:str = None,api_key:str = None,sms:bool=False):
 
-#     header = {"Content-Type":"application/json"}
+    header = {"Content-Type":"application/json"}
 
-#     if token:
-#         header["Authorization"] = f"Bearer {token}"
+    if token and sms is False:
+        header["Authorization"] = f"Bearer {token}"
 
-    
-#     async with httpx.AsyncClient as client:
-#         try:
-#             response = await client.post()
+    if sms is True and token:
+        header["Authorization"] = f"Basic {token}"
+
+    if api_key:
+        header["X-API-KEY"] = api_key
+
+    async with httpx.AsyncClient() as client:
+        try:
+
+            response = await client.post(
+                url=url,
+                headers=header,
+                json=payload,
+                timeout=10.0)
+
+            response.raise_for_status()
+            message = response.json()
+
+            return {"status": "success", "message":message}
         
-#         except httpx
+        except (httpx.ConnectError, httpx.NetworkError) as e:
+            print(f"Erreur réseau : {e}")
+            return {"status": "failled", "message":"Problème de connexion au serveur"}
 
-#         response.raise_for_status() 
-    
-#     return response.json()
+        except httpx.TimeoutException:
+            print("La requête a expiré")
+            return {"status": "failled", "message":"Timeout"}
+
+        except httpx.HTTPStatusError as e:
+            return {"status": "failled", "message":f"Statut invalide: {e.response.status_code}"}
+
+        except Exception as e:
+            return {"status": "failled", "message":f"Une erreur inconnue est survenue {e}"}

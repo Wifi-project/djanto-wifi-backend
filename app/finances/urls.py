@@ -1,6 +1,6 @@
 from ninja import Router
 from ninja.pagination import paginate, LimitOffsetPagination
-from app.users.deps import GlobalAuth
+from app.users.deps import GlobalAuth,Auth,IsOwnerMicrotik, HasValidVpn
 
 from app.finances.schemas import (
     InfoDepositOut,
@@ -23,11 +23,14 @@ finances_router = Router(
 
 @finances_router.get(
         "/{microtik_slug} /list-deposit", 
+        auth=GlobalAuth(permissions=[Auth,IsOwnerMicrotik]),
         response=list[InfoDepositOut]
         )
 def list_info_depost(request,microtik_slug:str) -> list[InfoDepositOut]:
-    user = request.user
-    return info_deposit_list(microtik_slug=microtik_slug,owner=user)
+    # user = request.user
+    return info_deposit_list(
+        microtik=request.microtik
+        )
 
 
 @finances_router.get(

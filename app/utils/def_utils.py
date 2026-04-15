@@ -46,26 +46,6 @@ def profil_duration(duration,type_session):
     return session_timeout
 
 
-def check_property_microtik(microtik_slug:str, user:User):
-    if user.user_type == User.OWNERMICROTIK:
-        microtik = (
-            Microtik.objects.prefetch_related('profils')
-            .filter(slug=microtik_slug, owner=user).first()
-            )
-    else:
-        microtik = (
-            Microtik.objects.prefetch_related('profils')
-            .filter(slug=microtik_slug).first()
-            )
-    if not microtik:
-        raise HttpError(
-            status_code=404,
-            message="Aucun microtik avec ce slug existant."
-        )
-    return microtik
-
-
-
 def creer_ticket_code(
         microtik:Microtik,
         code_paye:list, 
@@ -103,3 +83,6 @@ def creer_ticket_code(
     
     finally:
         connection.disconnect()
+
+
+

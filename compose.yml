@@ -1,4 +1,3 @@
-version: "3.9"
 services:
   routeros:
     image: evilfreelancer/docker-routeros:latest
@@ -9,29 +8,35 @@ services:
       - /dev/net/tun
       - /dev/kvm
     ports:
-      - "2222:22"      # SSH
-      - "2223:23"      # Telnet
+      # - "2222:22"      # SSH
+      # - "2223:23"      # Telnet
       - "80:80"        # Webfig
-      - "8291:8291"    # Winbox
+      - "8291:8291"    # Winbox 
       - "8728:8728"    # API
       - "8729:8729"    # API-SSL
     volumes:
       - routeros-data:/data
     networks:
       - default
-      - routeros_net   # Pour la communication avec d'autres conteneurs
+      - routeros_net  
+
 
   vpn:
-    image: siomiz/softethervpn
-    container_name: cashmoov-vpn-test
+    image: softethervpn/vpnserver:latest
+    container_name: vpn-test
     cap_add:
       - NET_ADMIN
     ports:
-      - "443:443/tcp"   # Port pour le SSTP
-      - "5555:5555/tcp" # Port pour l'administration SoftEther
+      - "443:443/tcp"
+      - "5555:5555/tcp"
     environment:
-      - PSK=cashmoov_secret
+      - SPW=admin123  
     restart: always
+    networks:
+      - default
+      - routeros_net  
+
+
 
 networks:
   routeros_net:

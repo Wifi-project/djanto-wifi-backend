@@ -4,7 +4,7 @@ from decimal import Decimal
 from enum import Enum
 from datetime import datetime
 from pydantic import IPvAnyAddress
-
+from app.clients.schemas import PaymentMethod
 
 class SubscriptionCategoriEnum(str, Enum):
     MENSUEL = "mensuel"
@@ -38,8 +38,8 @@ class SubscriptionCategorieOutShema(Schema):
 
 #-------------- Subscription ---------------#
 class SubscriptionVpnInSchema(Schema):
+    paymentMethod: PaymentMethod
     phone_number: str 
-    amount: Decimal
     category_slug: str
 
 

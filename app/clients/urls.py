@@ -1,8 +1,12 @@
-from ninja import Router
+from ninja import Router, File
+import csv
+import io
+from ninja.files import UploadedFile
 
 from app.clients.schemas import (
     InfoDepositIn,
     DepositResponseSchemas,
+    PaymentResponseSchema,
     PaymentWebhook,
     ClientIn,
     ClientCreateResponse,
@@ -12,21 +16,20 @@ from app.clients.schemas import (
     ClientBlockedOutSchemas,
     ClientRetrieve,
 )
-from app.users.deps import GlobalAuth,IsOwnerMicrotik,HasValidVpn
+from app.users.deps import GlobalAuth,IsOwnerMicrotik,HasValidVpn,Auth
 
 from app.clients.services import (
     deposit,
     notif_url,
-    ClientService
+    ClientService,
     )
-
 
 client_router = Router(tags=["Client"])
 
 
 @client_router.post("/deposit/{microtik_slug}", response=DepositResponseSchemas)
-def deposit_client(request,data:InfoDepositIn, microtik_slug:str) -> DepositResponseSchemas:
-    return deposit(microtik_slug=microtik_slug,data=data.model_dump())
+async def deposit_client(request,data:InfoDepositIn, microtik_slug:str) -> DepositResponseSchemas:
+    return await deposit(microtik_slug=microtik_slug,data=data.model_dump())
 
 
 @client_router.post("/notif/reponse/transaction/")
@@ -48,6 +51,21 @@ def create_clients(request,data:ClientIn,microtik_slug:str):
         profil_slug=data.profil_slug,
         user_numbers=data.user_numbers
     )
+
+
+@client_router.post(
+        "/importe-csv", 
+        response=list[ClientOut], 
+        auth=GlobalAuth(permissions=[Auth,IsOwnerMicrotik])
+        )
+def import_csv(request, file: File[UploadedFile]):
+    content = file.read().decode("utf-8")
+    csv_data = io.StringIO(content)
+    
+    reader = csv.DictReader(csv_data)
+    microtik = request.microtik
+    return ClientService.csv_save_service(reader=reader, microtik=microtik)
+
 
 
 @client_router.patch(

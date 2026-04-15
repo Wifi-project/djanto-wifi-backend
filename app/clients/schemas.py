@@ -2,7 +2,7 @@ from enum import Enum
 from datetime import datetime
 from ninja.schema import Schema,Field
 from uuid import UUID
-
+from decimal import Decimal
 
 class PaymentStatus(str, Enum):
     SUCCESS = "SUCCESS"
@@ -18,7 +18,7 @@ class PaymentMethod(str, Enum):
 
 
 class InfoDepositIn(Schema):
-    payment_method: PaymentMethod
+    paymentMethod: PaymentMethod
     profil_slug: str
     phone_number: str
     number_receve_code: str
@@ -29,6 +29,14 @@ class DepositResponseSchemas(Schema):
     message: str 
 
 
+class PaymentResponseSchema(Schema):
+    status: str
+    slug: str
+    amount: Decimal
+    paymentMethod: str 
+
+
+# --- Exemple d'ut
 
 #-------------CLIENT SCHEMAS------------#
 
@@ -51,16 +59,17 @@ class ClientCreateResponse(Schema):
 
 class ClientOut(Schema):
     slug: str
-    phone_number:str
+    phone_number:str | None = None
     code_username:str
     code_password:str
-    limit_uptime:str
+    limit_uptime:str | None = None
     profil_name:str
-    microtik: MicrotikNameOut
+    microtik_name: str = Field(None, alias="microtik.name")
     generate: str 
     is_sold: bool
     status: str
     created_at: datetime | None = None
+
 
     class Config:
         from_attributes=True
