@@ -1,0 +1,142 @@
+[
+  {
+    "model": "permissions.permissiongroup",
+    "pk": 1,
+    "fields": {
+      "name": "Proprietaire microtik",
+      "slug": "proprietaire-microtik",
+      "description": "Groupe des propriétaires de microtiks avec tous les droits sur leurs routeurs",
+      "permissions": [],
+      "users": [],
+      "is_active": true,
+      "created_at": "2025-01-01",
+      "update_at": "2025-01-01"
+    }
+  },
+  {
+    "model": "permissions.permissiongroup",
+    "pk": 10,
+    "fields": {
+      "name": "Init Proprietaire microtik",
+      "slug": "init-proprietaire-microtik",
+      "description": "Groupe des d'initiation pour les proprietaires microtiks.",
+      "permissions": [],
+      "users": [],
+      "is_active": true,
+      "created_at": "2025-01-01",
+      "update_at": "2025-01-01"
+    }
+  },
+  {
+    "model": "permissions.permissiongroup",
+    "pk": 2,
+    "fields": {
+      "name": "Super Administration",
+      "slug": "super-administration",
+      "description": "Super administrateurs avec tous les droits sur toute la plateforme",
+      "permissions": [],
+      "users": [],
+      "is_active": true,
+      "created_at": "2025-01-01",
+      "update_at": "2025-01-01"
+    }
+  },
+  {
+    "model": "permissions.permissiongroup",
+    "pk": 3,
+    "fields": {
+      "name": "Administration",
+      "slug": "administration",
+      "description": "Administrateurs avec droits de gestion des utilisateurs et des permissions",
+      "permissions": [],
+      "users": [],
+      "is_active": true,
+      "created_at": "2025-01-01",
+      "update_at": "2025-01-01"
+    }
+  },
+  {
+    "model": "permissions.permissiongroup",
+    "pk": 4,
+    "fields": {
+      "name": "Gerant microtik",
+      "slug": "gerant-microtik",
+      "description": "Gestionnaires de microtiks avec droits de gestion des profils et des clients",
+      "permissions": [],
+      "users": [],
+      "is_active": true,
+      "created_at": "2025-01-01",
+      "update_at": "2025-01-01"
+    }
+  },
+  {
+    "model": "permissions.permissiongroup",
+    "pk": 5,
+    "fields": {
+      "name": "Partenaire",
+      "slug": "partenaire",
+      "description": "Partenaires avec accès limité aux microtiks et aux statistiques",
+      "permissions": [],
+      "users": [],
+      "is_active": true,
+      "created_at": "2025-01-01",
+      "update_at": "2025-01-01"
+    }
+  },
+  {
+    "model": "permissions.permissiongroup",
+    "pk": 6,
+    "fields": {
+      "name": "Profil Manager",
+      "slug": "profil-manager",
+      "description": "Gestion des profils Hotspot (création, modification, suppression)",
+      "permissions": [],
+      "users": [],
+      "is_active": true,
+      "created_at": "2025-01-01",
+      "update_at": "2025-01-01"
+    }
+  },
+  {
+    "model": "permissions.permissiongroup",
+    "pk": 7,
+    "fields": {
+      "name": "Client Manager",
+      "slug": "client-manager",
+      "description": "Gestion des clients Hotspot (création, modification, suppression, import/export)",
+      "permissions": [],
+      "users": [],
+      "is_active": true,
+      "created_at": "2025-01-01",
+      "update_at": "2025-01-01"
+    }
+  },
+  {
+    "model": "permissions.permissiongroup",
+    "pk": 8,
+    "fields": {
+      "name": "Finance Manager",
+      "slug": "finance-manager",
+      "description": "Gestion des finances (retraits, dépôts, gains, commissions)",
+      "permissions": [],
+      "users": [],
+      "is_active": true,
+      "created_at": "2025-01-01",
+      "update_at": "2025-01-01"
+    }
+  },
+  {
+    "model": "permissions.permissiongroup",
+    "pk": 9,
+    "fields": {
+      "name": "Abonnement Manager",
+      "slug": "abonnement-manager",
+      "description": "Gestion des abonnements VPN WireGuard (création, renouvellement, annulation)",
+      "permissions": [],
+      "users": [],
+      "is_active": true,
+      "created_at": "2025-01-01",
+      "update_at": "2025-01-01"
+    }
+  }
+]

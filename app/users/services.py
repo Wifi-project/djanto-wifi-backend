@@ -4,9 +4,15 @@ from app.users.models import User
 from ninja.errors import HttpError
 from django.contrib.auth.hashers import make_password
 from app.utils.password_check import check_security_password
+from app.commone.email import send_mail_creation
 
 
 def user_creation(data:dict=[str,str | bool] ):
+    from app.permissions.models import PermissionGroup
+    from app.microtiks.utils import PermissionGroupEnum
+
+    type_user = data.get('user_type','')
+
     if User.objects.filter(email=data['email']).exists():
         raise HttpError(
             status_code=404,
@@ -22,6 +28,17 @@ def user_creation(data:dict=[str,str | bool] ):
         **data,
         password=password
     )
+
+    group = None
+    if type_user == User.OWNERMICROTIK:
+        group = PermissionGroup.objects.filter(slug=PermissionGroupEnum.INIT_PROPRIETAIRE_MICROTIK.value).first()
+    if type_user == User.ADMIN:
+        group = PermissionGroup.objects.filter(slug = PermissionGroupEnum.ADMINISTRATION.value).first()
+
+    if group:
+        group.users.add(user)
+        username = f'{user.first_name} {user.last_name}'
+    send_mail_creation(username=username,email=user.email,pwd=password)
     return user
 
 

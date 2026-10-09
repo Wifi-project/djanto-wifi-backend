@@ -18,12 +18,13 @@ class Client(Base):
         (OWNER, "generer par le owner",),
         (IMPORT,"importer par csv",),
     )
-
+    client_id = models.BigIntegerField(null=True)
     phone_number = models.CharField(max_length=10, null=True,blank=True)
     code_username = models.CharField(max_length=50, null=False,blank=False)
     code_password = models.CharField(max_length=50, null=False,blank=False)
     limit_uptime = models.CharField(max_length=50)
     profil_name = models.CharField(max_length=50)
+    amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     microtik = models.ForeignKey(
         Microtik, 
         on_delete=models.CASCADE, 
@@ -42,7 +43,17 @@ class Client(Base):
 
     def __str__(self):
         return self.phone_number
-    
+
+
+class GroupClient(Base):
+    name = models.CharField(max_length=250)
+    clients = models.ManyToManyField(Client, related_name='group_client')
+    number_voucher = models.IntegerField(default=0)
+    microtik = models.ForeignKey(
+        Microtik, 
+        on_delete=models.CASCADE, 
+        related_name='groups', 
+        )
 
 class InfoDeposit(Base):
     PENDING = 'pending'
@@ -62,6 +73,7 @@ class InfoDeposit(Base):
         related_query_name='info_deposit'
         )
     eventId = models.CharField(max_length=250)
+    transactionId = models.CharField(max_length=250, null=True)
     paymentMethod = models.CharField(max_length=20)
 
     def __str__(self):

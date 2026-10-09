@@ -26,7 +26,7 @@ class IsOwnerMicrotik(BasePermission):
         query = (
             Microtik.objects
             .prefetch_related('profils','clients')
-            .select_related("subscription")
+            .select_related("subscriptionwg")
             .filter(slug=microtik_slug)
         )
 
@@ -49,14 +49,20 @@ class HasValidVpn(BasePermission):
         if not microtik:
             raise HttpError(500, "Microtik non chargé")
 
-        vpn = microtik.subscription
+        try:
+            wg = microtik.subscriptionwg if hasattr(microtik, 'subscriptionwg') else None
+        except microtik.subscriptionwg.RelatedObjectDoesNotExist:
+            wg = None
 
-        if not (vpn and vpn.validation):
-            raise HttpError(403, "Aucun abonnement VPN valide")
+        if not wg:
+            raise HttpError(403, "Aucun abonnement VPN trouvé")
 
-        request.vpn = vpn
+        if not wg.validation:
+            raise HttpError(403, "Abonnement VPN expiré ou invalide")
+
+        request.wg = wg
         return True
-    
+
 
 class Auth(BasePermission):
     def has_permission(self, request):

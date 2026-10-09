@@ -4,7 +4,8 @@ from app.microtiks.models import Microtik,Profil
 from decimal import Decimal
 from typing import List
 from enum import Enum
-from app.subscriptions.schemas import SubscriptionVpnOutSchema
+from app.subscriptions.schemas import SubscriptionWGDetailSchema
+from app.users.schemas import UserOwnerOutSchema
 
 class ProfilDuratinEnum(str,Enum):
     MINUTES = "m"
@@ -58,13 +59,13 @@ class ProfilUpdateSchema(ProfilBase):
     shared_users: int | None = None
     currency: str | None = None
     price: str | None = None
-    status: StatusEnum | None = None
+    # status: StatusEnum | None = None
     type_session: ProfilDuratinEnum | None = None
     duration: int | None = None 
 
 
 class ProfilInSchema(ProfilBase):
-    status: StatusEnum | None = None
+    # status: StatusEnum | None = None
     type_session : ProfilDuratinEnum
     duration : int
 
@@ -82,14 +83,16 @@ class MicrotikInSchemas(ModelSchema):
     class Meta:
         model = Microtik
         fields = [
-            "name"
+            "name",
+            "description",
+            "device_type",
         ]
 
-class MicrotikCheckSchemas(Schema):
-    """Utiliser pour le check de connexion du microtik"""
-    vpn_ip: str
-    vpn_username: str
-    vpn_password: str
+# class MicrotikCheckSchemas(Schema):
+#     """Utiliser pour le check de connexion du microtik"""
+#     vpn_ip: str
+#     vpn_username: str
+#     vpn_password: str
 
 class MicrotikCheckResponseSchemas(Schema):
     status: str
@@ -102,10 +105,12 @@ class MicrotikOutListSchemas(ModelSchema):
         fields = [
             "slug",
             "name",
+            'description',
             "wallet_balance",
             "users_count",  
             "is_online",
-            "admin_blocked"
+            "admin_blocked",
+            
         ]
         read_only_fields = fields
 
@@ -113,14 +118,17 @@ class MicrotikOutListSchemas(ModelSchema):
 class MicrotikOutRetrieveSchemas(Schema):
     slug:str
     name: str
+    device_type: str
+    description: str
     wallet_balance: Decimal
     amount_available_windrawal: Decimal
     users_count: int
     commission_rate: float
     is_online: bool
     admin_blocked: bool
-    subscription: SubscriptionVpnOutSchema | None = None
-    profils: List[ProfilOutSchema] | None = None
+    subscriptionwg: SubscriptionWGDetailSchema | None = None
+    owners: list[UserOwnerOutSchema] = []
+    # profils: List[ProfilOutSchema] | None = None
     
     class Config:
         from_attributes = True
@@ -128,5 +136,15 @@ class MicrotikOutRetrieveSchemas(Schema):
 
 class MicrotikUpdateSchemas(Schema):
     name:str | None = None
-    is_online: bool | None = None
+    username_routeur: str | None = None
+    password_routeur: str | None = None
+    description :str
 
+
+
+
+class MicrotikAddOwner(Schema):
+    email: str 
+
+class AddOwnerGroup(Schema):
+    slug_user: str 

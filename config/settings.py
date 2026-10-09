@@ -16,6 +16,9 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 from datetime import timedelta
 from dotenv import load_dotenv
+load_dotenv(BASE_DIR / '.env')
+
+import dj_database_url
 
 
 # Quick-start development settings - unsuitable for production
@@ -49,12 +52,15 @@ INSTALLED_APPS = [
     'app.users',
     'app.finances',
     'app.subscriptions',
+    'app.permissions',
+    'app.transactions',
 ]
 
-
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     "corsheaders.middleware.CorsMiddleware",
     'django.middleware.common.CommonMiddleware',
@@ -95,6 +101,34 @@ DATABASES = {
 }
 
 
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.postgresql',
+#         'NAME': os.getenv('POSTGRES_DB', 'wifi'),
+#         'USER': os.getenv('POSTGRES_USER', 'wifi'),
+#         'PASSWORD': os.getenv('POSTGRES_PASSWORD', 'wifi'),
+#         'HOST': os.getenv('POSTGRES_HOST', 'localhost'),
+#         'PORT': os.getenv('POSTGRES_PORT', '5432'),
+#         'CONN_MAX_AGE': 60,
+#         'CONN_HEALTH_CHECKS': True,
+#         'OPTIONS': {
+#             'connect_timeout': 10,
+#         },
+#     }
+# }
+
+DATABASE_URL = os.getenv('DATABASE_URL')
+
+if DATABASE_URL:
+    DATABASES['default'] = dj_database_url.parse(
+        DATABASE_URL,
+        conn_max_age=600,
+        conn_health_checks=True,
+    )
+    DATABASES['default']['OPTIONS'] = {
+        'connect_timeout': 10,
+    }
+
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
 
@@ -112,6 +146,18 @@ AUTH_PASSWORD_VALIDATORS = [
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
 ]
+
+
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+STATIC_URL = '/static/'
+
+# Compression et gestion du cache avec WhiteNoise
+STORAGES = {
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
 
 
 # Internationalization
@@ -145,8 +191,52 @@ NINJA_SIMPLE_JWT = {
 AUTH_USER_MODEL = "users.User"
 
 CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_CREDENTIALS = True
 
 # CORS_ALLOWED_ORIGINS = [
 #     "http://localhost:3000",  # Common for React/Vue development
 #     "https://example.com",
 # ]
+
+
+# --- CONFIGURATION RABBITMQ & CELERY ---
+# En production, l'hôte est "rabbitmq" (le nom du service docker-compose)
+
+CELERY_BROKER_URL = os.environ.get(
+    'CELERY_BROKER_URL', 
+    'amqp://djanto:djanto@rabbitmq:5672//'
+)
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+CELERY_RESULT_BACKEND = None  # Pas besoin de stocker le statut si tu ne fais que du Fire-and-Forget
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'Africa/Conakry'  # Calé sur ton fuseau horaire
+
+
+
+# --- GESTION DE TA CLÉ PRIVÉE JWT (BASE64) ---
+# encoded_key = os.environ.get("JWT_PRIVATE_KEY_BASE64")
+# if encoded_key:
+#     JWT_PRIVATE_KEY = base64.b64decode(encoded_key).decode("utf-8")
+# else:
+#     JWT_PRIVATE_KEY = "cle-de-secours-uniquement-pour-le-dev-local"
+
+
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp.gmail.com')
+EMAIL_PORT = int(os.environ.get('EMAIL_PORT', 465))
+
+EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'False').lower() in ('true', '1', 't')
+EMAIL_USE_SSL = os.environ.get('EMAIL_USE_SSL', 'False').lower() in ('true', '1', 't')
+
+# GARDE-FOU EXPLICITE (Empêche l'erreur de conflit TLS/SSL)
+if EMAIL_USE_SSL and EMAIL_USE_TLS:
+    EMAIL_USE_TLS = False
+
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER)
+EMAIL_TIMEOUT = 10
+
+ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", EMAIL_HOST_USER)

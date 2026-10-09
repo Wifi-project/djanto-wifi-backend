@@ -36,7 +36,6 @@ class PaymentResponseSchema(Schema):
     paymentMethod: str 
 
 
-# --- Exemple d'ut
 
 #-------------CLIENT SCHEMAS------------#
 
@@ -45,12 +44,12 @@ class MicrotikNameOut(Schema):
 
 
 
-class ClientIn(Schema):
+class VoucherIn(Schema):
     profil_slug: str
-    user_numbers : int = Field(le=1000, description="maximum 1000")
+    voucher_number : int = Field(le=1000, description="maximum 1000")
 
 
-class ClientCreateResponse(Schema):
+class VoucherCreateResponse(Schema):
     username: str 
     password: str 
     profile_name: str
@@ -64,6 +63,7 @@ class ClientOut(Schema):
     code_password:str
     limit_uptime:str | None = None
     profil_name:str
+    amount: Decimal
     microtik_name: str = Field(None, alias="microtik.name")
     generate: str 
     is_sold: bool
@@ -98,6 +98,19 @@ class ClientNoExpireSchema(Schema):
 class ClientBlockedOutSchemas(Schema):
     status: str 
     message: str 
+
+
+# --- Group client ------------------
+
+class GroupClientOutSchema(Schema):
+    slug: str
+    name: str 
+    clients: ClientOut
+    number_client: int
+    created_at: str
+
+    class Config:
+        from_attributes = True;
 
 
 

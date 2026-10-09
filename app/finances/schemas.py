@@ -2,7 +2,7 @@ from enum import Enum
 from decimal import Decimal
 from datetime import datetime
 from ninja.schema import Schema,Field
-
+from app.clients.schemas import PaymentMethod
 
 class DepositStatus(str, Enum):
     PENDING = "pending"
@@ -44,5 +44,38 @@ class InfoDepositOut(InfoDepositBase):
 
 
 class InfoDepositRetrieve(InfoDepositOut):
-    client: ClientOut 
+    client: ClientOut | None = None
 
+
+#--------------- retrait ------------------#
+
+class WindrawSchemas(Schema):
+    """Schéma pour un retrait"""
+    amount: Decimal
+    # phone_number: str
+    password: str 
+    provider: PaymentMethod
+
+
+class ResponseWindrawSchemas(Schema):
+    status: str
+    message: str 
+
+
+class WindrawBaseSchema(Schema):
+    """Schéma de pour la list """
+    slug: str 
+    reference: str
+    amount: Decimal 
+    status: str 
+    created_at: datetime 
+
+    class Config:
+        from_attributes = True
+
+
+class WindrawOutSchema(WindrawBaseSchema):
+    """Schéma de sortie pour un retrait"""
+    microtik_name: str 
+    user_username: str 
+    updated_at: datetime 

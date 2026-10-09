@@ -2,19 +2,22 @@ from __future__ import annotations
 from datetime import datetime
 from django.utils import timezone
 from ninja.errors import HttpError
-from asgiref.sync import sync_to_async
 from http import HTTPStatus
-from app.clients.models import InfoDeposit, Client
+from app.clients.models import InfoDeposit, Client,Status
 from typing import TYPE_CHECKING
 from django.db import transaction
-from app.utils.def_utils import connect_microtik, generer_code_unique, creer_ticket_code
 from app.users.models import User
 from django.db import transaction
-from app.subscriptions.models import SubscriptionVpn
+from app.subscriptions.models import SubscriptionWG
 from app.api_extern.adapterPayement import AdapterPayement
+import csv
+from app.clients.tasks import process_payment_webhook_task
+from app.microtiks.gms import gdms_service
+from app.clients.models import GroupClient
+
 
 if TYPE_CHECKING:
-    from app.microtiks.models import Microtik
+    from app.microtiks.models import Microtik,RouteurType,Profil
 
 
 
@@ -39,7 +42,7 @@ async def deposit(microtik_slug: str, data: dict):
     
     adapter = AdapterPayement(code="djomy")
     
-    reference = await sync_to_async(InfoDeposit.objects.create)(
+    reference = await InfoDeposit.objects.acreate(
         **data, 
         microtik=microtik,
         profil_name=profil.name,
@@ -47,252 +50,203 @@ async def deposit(microtik_slug: str, data: dict):
         amount=profil.price
     )
     
-    response = await adapter.payement(
+    response = await adapter.payeIn(
         amount=profil.price,
         method=data.get("paymentMethod"),
         number=data.get("phone_number"),
-        reference=reference.slug
+        reference=reference.slug,
+        description = " Achat de ticket"
     )
     
     return response
 
 
-@transaction.atomic()
-def notif_url(data:str) -> dict:
-    eventId = data.get("eventId","")
-        
-    data_transaction = data.get("data", {})
-    transactionId = data_transaction.get("transactionId","")
-    status = data_transaction.get("status", "")
 
-    deposit = InfoDeposit.objects.select_related("info_deposit").filter(slug=transactionId).first()
-    microtik = deposit.microtik
+def notif_url(data: dict) -> dict:
+    """
+    Webhook de notification de paiement.
+    Gère la validation du paiement, la création du ticket sur le MikroTik
+    et la mise à jour de la base de données.
+    """
+    return process_payment_webhook_task.delay(data=data)         
 
-    if status == "SUCCESS":
-        
-        get_code = generer_code_unique(longueur=10)
 
-        while Client.objects.filter(code_username=get_code,microtik=microtik).exists():
-            get_code = list(generer_code_unique())
-
-        create_user_api = creer_ticket_code(
-            microtik=microtik,
-            code_paye=get_code,
-            profile=deposit.profil_name,
-            limit_uptime=deposit.limit_uptime,
-            comment=f"Date: {datetime.fromtimestamp(timezone.now())} Payé via Djanto wifi"
-        )
-
-        if create_user_api.get('status') is True:
-            Client.objects.create(
-                phone_number = deposit.number_receve_code,
-                code_username = get_code,
-                code_password = get_code,
-                microtik = microtik,
-                info_deposit = deposit,
-                limit_uptime = deposit.limit_uptime,
-                profil_name= deposit.profil_name
-            )
-
-            deposit.status = InfoDeposit.SUCCESS
-            deposit.eventId = eventId
-            deposit.save()
-
-            microtik.sold += deposit.amount
-            microtik.users += 1
-            microtik.save()
-
-            #envoie du sms
-
-    else:
-        deposit.status = InfoDeposit.FAILED
-        deposit.eventId = eventId
-        deposit.save()
-    
-    return {}
-        
-        
 class ClientService:
 
     @staticmethod
-    def create_client_service(microtik:Microtik,profil_slug,user_numbers):
-        profil = microtik.profils.filter(slug=profil_slug)
-        if not microtik:
+    def list_group(microtik:Microtik):
+        group = GroupClient.objects.filter(microtik=microtik).order_by('-created_at')
+        return group
+
+
+    @staticmethod
+    async def create_voucher_service(microtik:Microtik,profil_slug,voucher_number):
+        profil = microtik.profils.filter(slug=profil_slug).first()
+
+        if not profil:
             raise HttpError(
                 status_code=HTTPStatus.BAD_REQUEST,
                 message="Aucun slug correspondant a ce profil."
             )
-        codes = [generer_code_unique() for _ in range(user_numbers)]
-        
-        users = creer_ticket_code(
-            microtik=microtik,
-            code_paye=codes,
-            profile_name=profil.name,
-            limit_uptime=profil.session_timeout,
-            comment=f"Date: {datetime.fromtimestamp(timezone.now())} admin generation"
-        )
-        if users.get('status',False) is False:
-            return {
-                "username":"",
-                "password":"",
-                "profile_name":"",
-                "limit_uptime": ""
-            }
-        
-        model_client = [Client(
-            code_username = code,
-            code_password = code,
-            microtik = microtik,
-            limit_uptime = profil.session_timeout,
-            profil_name = profil.name) for code in codes]
-        
-        Client.objects.bulk_create(model_client)
 
-        return [
-                {
-                    "username":code,
-                    "password": code,
-                    "profile_name": profil.name,
-                    "limit_uptime": profil.session_timeout
-                } for code in codes
-            ]
+        device_type = microtik.device_type
+        subs = microtik.subscriptionwg
+        tickets = None 
 
-
-    @staticmethod
-    def csv_save_service(reader:dict, microtik:Microtik):
-        reader_lower = {k.lower(): v for k, v in reader.items()}
-
-        model_list = [Client(
-            code_username = row.get("username",""), 
-            code_password = row.get("password",""), 
-            profil_name = row.get("profile",""),
-            limit_uptime = row.get("date limit",""),
-            generate = Client.IMPORT,
-            microtik = microtik
-            ) for row in reader_lower]
-        
-        clients = Client.objects.bulk_create(model_list,return_defaults=True)
-        return clients
-
-
-    @staticmethod
-    def list_client_service(microtik:Microtik) -> list[User]:
-        clients = microtik.clients.all()
-        return clients
-
-
-    @staticmethod
-    def retrieve_client_service(microtik:Microtik,client_slug:str) -> User:
-        client = Client.objects.select_related("microtik").filter(
-            microtik = microtik,
-            slug = client_slug
-        ).first()
-
-        if not client:
-            raise HttpError(
-                status_code=404,
-                message="aucun client trouver pour ce slug"
+        if device_type == RouteurType.GDMS.value:
+            tickets = await gdms_service.create_vouchers(
+                network_id= subs.gdms_network_id,
+                upRate= profil.up_rate,
+                downRate=profil.down_rate,
+                name = f"voucher_{profil.name}-{timezone.now()}",
+                count=voucher_number,
+                effect_duration_map=profil.session_timeout_dict,
+                max_devices= profil.shared_users,
             )
-        return client
+            if tickets:
+                GroupClient.objects.create(
+                    name = f"voucher_{profil.name}-{timezone.now()}",
+                    microtik = microtik,
+                    number_voucher = voucher_number
+                )
+                print('les tickets: \n', tickets)
+
+            
+    @staticmethod
+    async def list_voucher_service(microtik: Microtik, subscription: SubscriptionWG,page_size:int=10, page_num:int=1) -> dict:
+        res = await gdms_service.list_voucher(
+            network_id=subscription.gdms_network_id,
+            page_size=page_size,
+            page_num=page_num
+        )
+        return res
 
 
     @staticmethod
-    def blocked_unlocked_client_service(microtik:Microtik,user_slug:str,is_desable:bool, vpn:SubscriptionVpn):
+    async def delete_voucher_service(microtik: Microtik, subscription: SubscriptionWG,voucher_id:int):
+        res = gdms_service.delete_voucher(
+            voucher_id=voucher_id,
+            network_id=subscription.gdms_network_id
+        )
+        if not res:
+            ...
 
-        client = microtik.clients.filter(slug=user_slug).first()
+        return res
+
+
+    @staticmethod
+    def list_client_service(microtik: Microtik, subscription: SubscriptionWG, page_num:int=1, page_size:int=10) -> dict:
+        """Afficher le liste des clients"""
+        response = gdms_service.list_clients(
+            network_id=subscription.gdms_network_id,
+            page_num=page_num,
+            page_size=page_size
+        )
+        return response
+
+
+    @staticmethod
+    def retrieve_client_service(microtik: Microtik,subscription:SubscriptionWG, client_id: str) -> Client:
+        """ Afficher les details user d'un microtik """
+        res = gdms_service.client_retrieve(
+            network_id=subscription.gdms_network_id,
+            client_id=client_id
+        )
+
+        client = Client.objects.filter(client_id=client_id).first()
+        client.status = Status.DISABLE
+        client.save(update_fields=['status'])
+        return res
+
+
+    @staticmethod
+    async def blocked_unlocked_client_service(microtik: Microtik, client_id: str, enable: bool, subscription: SubscriptionWG):
+        client = microtik.clients.filter(client_id=client_id).first()
         if not client:
             raise HttpError(
                 status_code=HTTPStatus.BAD_REQUEST,
-                message="slug de ce client n'exist pas."
+                message="le slug de ce client n'existe pas."
             )
 
-        connection = connect_microtik(
-            ip=vpn.ip,
-            username=vpn.username,
-            password=vpn.password
+        response = gdms_service.block_disblock_client(
+            network_id=subscription.gdms_network_id,
+            client_id=client_id,
+            enable=enable
+        )
+        if not response:
+            raise HttpError(
+                status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+                message='une erreur inatandu sest produit'
             )
-        api = connection.get_api()
-        list_user = api.get_resource('/ip/hotspot/user')
-        users_trouves = list_user.get(name=client.code_username)
-
-        if users_trouves:
-            user_id = users_trouves[0]['.id']
-            
-            if is_desable is True:
-                list_user.set(id=user_id, disabled='yes')
-
-                active_resource = api.get_resource('/ip/hotspot/active')
-                session_active = active_resource.get(user=client.code_username)
-                if session_active:
-                    active_resource.remove(id=session_active[0]['.id'])
-
-                client.status = Client.DISABLE
-            else:
-                list_user.set(id=user_id, disabled='no')
-                client.status = Client.DISABLE
-
-            client.status = Client.save()
-            return {"status":"success", "message":"modification effectuer avec sucess"}
-
-        else:
-            return {"status":"success", "message":"slug de ce client n'exist pas sur le microtik."}
+        
+        client.status = Status.DISABLE if enable else Status.ACTIVE
+        client.save()
+        return client
+        
 
 
     @staticmethod
-    def actif_list_client_service(microtik:Microtik, vpn:SubscriptionVpn):
+    async def actif_list_client_service(microtik: Microtik, subscription: SubscriptionWG, page_num:int=10, page_size:int=0) -> list:
         
-        connection = connect_microtik(
-            ip=vpn.vpn_ip,
-            username=vpn.vpn_username,
-            password=vpn.vpn_password
-            )
-        
-        api = connection.get_api()
-        active_resource = api.get_resource('/ip/hotspot/active')
-        active_users = active_resource.get()
-
-        users_list = []
-        for session in active_users:
-            session_timeout = int(session.get('session-timeout', 0))
-            uptime = int(session.get('uptime', 0))  
-            expire_in = session_timeout - uptime if session_timeout > 0 else None
-
-            users_list.append({
-                "username": session['user'],
-                "ip":session['address'],
-                "connexion_time": session['uptime'],
-                "expire_in": expire_in // 60 if expire_in else 0
-            })
-
-        return users_list
+        res = gdms_service.get_online_guests(
+            network_id=subscription.gdms_network_id,
+            page_num=page_num,
+            page_size=page_size
+        ) 
+        return res
 
 
     @staticmethod
-    def no_expired_client_service(microtik:Microtik,vpn:SubscriptionVpn):
-        connection = connect_microtik(
-            ip=vpn.vpn_ip,
-            username=vpn.vpn_username,
-            password=vpn.vpn_password
+    def kick_client_service(microtik: Microtik, username: str, subscription: SubscriptionWG) -> dict:
+        """Expulse un utilisateur de la session active sans désactiver son ticket."""
+        res = gdms_service.kick_guest(
+
+        )
+
+
+    @staticmethod
+    def reset_uptime_service(microtik: Microtik, user_slug: str, subscription: SubscriptionWG) -> dict:
+        """Réinitialise les compteurs de consommation (temps et octets) d'un utilisateur sur le MikroTik."""
+        ...
+
+
+    @staticmethod
+    def csv_save_service(reader: csv.DictReader, microtik: Microtik):
+        model_list = []
+
+        for row in reader:
+            # 1. On transforme toutes les clés de la ligne en minuscules et on nettoie les espaces/tirets
+            row_lower = {k.lower().strip().replace("-", " "): v for k, v in row.items() if k}
+            
+            # 2. Extraction sécurisée selon les formats classiques de Mikhmon
+            username = row_lower.get("username") or row_lower.get("login", "")
+            password = row_lower.get("password") or row_lower.get("pwd", "")
+            profile = row_lower.get("profile") or row_lower.get("upiprofile", "")
+            
+            # Gère les variantes de colonnes de Mikhmon ("limit uptime", "limit-uptime", "date limit")
+            limit_uptime = row_lower.get("limit uptime") or row_lower.get("date limit") or row_lower.get("uptime", "")
+
+            # Sécurité : On ignore les lignes complètement vides
+            if not username:
+                continue
+
+            model_list.append(
+                Client(
+                    code_username=username, 
+                    code_password=password, 
+                    profil_name=profile,
+                    limit_uptime=limit_uptime,
+                    generate=Client.IMPORT,
+                    microtik=microtik
+                )
             )
         
-        api = connection.get_api()
+        # 3. Sauvegarde de masse optimisée en BDD
+        if model_list:
+            clients = Client.objects.bulk_create(model_list, return_defaults=True)
+            return clients
+        
+        return []
 
-        user_resource = api.get_resource('/ip/hotspot/user')
-        all_users = user_resource.get()
-
-        user_list = []
-        for user in all_users:
-            limit = user.get('limit-uptime')
-            used = user.get('uptime', '0s')
-            
-            if limit and used != limit:
-                user_list.append({
-                    'name': user.get('name'),
-                    'limit_uptime': limit,
-                    'uptime': used,
-                    'address': user.get('address'),
-                    'profile': user.get('profile'),
-                    'disabled': user.get('disabled')
-                })
 
 

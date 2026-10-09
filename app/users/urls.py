@@ -10,26 +10,28 @@ from app.users.schemas import (
     UserUpdate, 
     UserPasswordUpdate, 
     UserPasswordUpdateMe,
-    UserRetrieveScheama
+    UserRetrieveScheama,
+    CurrentUserSchema
     )
 from app.users.services import (
     user_creation, update_user_service,
     reset_password,retrive_user_service
     )
-from app.users.deps import GlobalAuth,Auth
+from app.permissions.checker import PermissionsChecker
+from app.permissions.enum_permissions import PermissionsEnum
 from django.contrib.auth.hashers import check_password
 from app.utils.password_check import check_security_password
 
 user_router = Router(tags=['Users'])
 
-@user_router.get('/me', response=UserOutSchema,auth=[GlobalAuth(permissions=[Auth])])
+@user_router.get('/me', response=CurrentUserSchema,auth=[PermissionsChecker()])
 def get_current_user(request):
     user_id = request.user
     return user_id
 
 
-@user_router.patch('/me', response=UserOutSchema, auth=GlobalAuth(permissions=[Auth]))
-def update_current_user(request, user_info:UserUpdate) -> UserOutSchema:
+@user_router.patch('/me', response=CurrentUserSchema, auth=PermissionsChecker())
+def update_current_user(request, user_info:UserUpdate) -> CurrentUserSchema:
     user = request.user
 
     return update_user_service(
@@ -38,7 +40,7 @@ def update_current_user(request, user_info:UserUpdate) -> UserOutSchema:
         )
 
 
-@user_router.post('/me/reset_password/', auth=GlobalAuth(permissions=[Auth]))
+@user_router.post('/me/reset_password/', auth=PermissionsChecker())
 def current_user_reset_password(request,data:UserPasswordUpdateMe) -> dict[int,str]:
     user = request.user
 
@@ -52,30 +54,45 @@ def current_user_reset_password(request,data:UserPasswordUpdateMe) -> dict[int,s
     return {200:"Mot de pass modifier avec success"}
 
     
-@user_router.delete('/me/delete/', auth=GlobalAuth(permissions=[Auth]))
+@user_router.delete('/me/delete/', auth=PermissionsChecker())
 def current_user_delete(request):
     user = request.user
     user.delete()
     return {'message':"Compte supprimer avec success"}
 
 
-@user_router.get('/profile/users', response=List[UserOutSchema], auth=GlobalAuth(permissions=[Auth]))  
+@user_router.get(
+        '/profile/users', 
+        response=List[UserOutSchema], 
+        auth=PermissionsChecker(permissions=[PermissionsEnum.USER_READ_ALL_USERS])
+        )  
 @paginate(LimitOffsetPagination, page_size=10)  
 def user_list(request):
     return User.objects.all()
 
 
-@user_router.get('/profile/users/{slug}', auth=GlobalAuth(permissions=[Auth]), response=UserRetrieveScheama)  
+@user_router.get(
+        '/profile/users/{slug}',
+        auth=PermissionsChecker(permissions=[PermissionsEnum.USER_READ]), 
+        response=UserRetrieveScheama,
+        )  
 def user_retrieve(request, slug:str)-> UserRetrieveScheama:
     return retrive_user_service(slug=slug)
 
 
-@user_router.post('/profile/users/', response=UserOutSchema)
+@user_router.post(
+        '/profile/users/', 
+        auth=PermissionsChecker(permissions=[PermissionsEnum.USER_CREATE]),
+        response=UserOutSchema)
 def create_user(request,user:UserInSchema) -> UserOutSchema:
     return user_creation(data=user.model_dump())
 
 
-@user_router.patch('/profile/users/{slug}',response=UserOutSchema, auth=GlobalAuth(permissions=[Auth]))
+@user_router.patch(
+        '/profile/users/{slug}',
+        response=UserOutSchema, 
+        auth=PermissionsChecker(permissions=[PermissionsEnum.USER_UPDATE])
+        )
 def update_user(request,slug,data:UserUpdate)-> UserOutSchema:
     user = User.objects.filter(slug=slug).first()
     return update_user_service(
@@ -83,7 +100,8 @@ def update_user(request,slug,data:UserUpdate)-> UserOutSchema:
                 data=data.model_dump(exclude_unset=True)
                 )
 
-@user_router.post('profile/users/reset_password/',auth=GlobalAuth(permissions=[Auth]))
+
+@user_router.post('profile/users/reset_password/',auth=PermissionsChecker())
 def user_reset_password(request,data:UserPasswordUpdate) -> dict[int,str]:
     password = data.new_password
     try:
@@ -102,7 +120,10 @@ def user_reset_password(request,data:UserPasswordUpdate) -> dict[int,str]:
     return {200:"Le mot de passe modifier avec success.\n Veillez consulter votre mail."}
 
 
-@user_router.delete('profile/users/{slug}/',auth=GlobalAuth(permissions=[Auth]))
+@user_router.delete(
+        'profile/users/{slug}/',
+        auth=PermissionsChecker(permissions=[PermissionsEnum.USER_DELETE])
+        )
 def delete_user(request,slug):
     try:
         user = User.objects.get(slug=slug)

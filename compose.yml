@@ -1,46 +1,196 @@
+# services:
+#   wg-easy:
+#     image: ghcr.io/wg-easy/wg-easy:latest
+#     container_name: wg-easy-server
+#     environment:
+#       - WG_HOST=host.docker.internal 
+#       - PASSWORD_HASH=$$2a$$12$$YSq2VnX8HK87YkkcBO8hpOglqJ9pUyuLLUV6bypCSadc77bJD8JvG
+#       - WG_PORT=51820
+#       - WG_DEFAULT_ADDRESS=10.8.0.x
+#       - WG_DEFAULT_DNS=1.1.1.1
+#     ports:
+#       - "51820:51820/udp" 
+#       - "51821:51821/tcp" 
+#     volumes:
+#       - wg-data:/etc/wireguard
+#     cap_add:
+#       - NET_ADMIN
+#       - SYS_MODULE
+#     sysctls:
+#       - net.ipv4.conf.all.src_valid_mark=1
+#       - net.ipv4.ip_forward=1
+#     networks:
+#       - cloud_net
+
+
+#   routeros:
+#     image: hossein3piol/mikrotik-routeros:latest
+#     container_name: mikrotik-test
+#     privileged: true
+#     devices:
+#       - /dev/kvm
+#     ports:
+#       - "8087:80/tcp"     # Webfig
+#       - "8291:8291/tcp"   # Winbox TCP
+#       - "8291:8291/udp"   # Winbox UDP
+#       - "8728:8728/tcp"   # API MikroTik
+#     volumes:
+#       - routeros-data:/routeros/data
+#     networks:
+#       - guinea_net 
+
+
+#   rabbitmq:
+#     image: rabbitmq:3-management-alpine
+#     container_name: rabbitmq
+#     environment:
+#       - RABBITMQ_DEFAULT_USER=guest
+#       - RABBITMQ_DEFAULT_PASS=guest
+#     ports:
+#       - "5672:5672"       # Port de communication Celery <-> RabbitMQ
+#       - "15672:15672"     # Interface web de gestion (Dashboard RabbitMQ)
+#     volumes:
+#       - rabbitmq-data:/var/lib/rabbitmq
+#     networks:
+#       - cloud_net
+
+#   # --- CELERY WORKER (Exécution des tâches en arrière-plan) ---
+#   celery_worker:
+#     build: .             # Utilise le même Dockerfile que ton app Django
+#     container_name: gateway-celery-worker
+#     command: celery -A ton_nom_de_projet worker --loglevel=info
+#     volumes:
+#       - .:/app           # Permet le live-reload de ton code en dev
+#     environment:
+#       - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
+#     depends_on:
+#       - rabbitmq
+#     networks:
+#       - cloud_net
+
+#   # --- CELERY BEAT (Planificateur de tâches / Cron) ---
+#   celery_beat:
+#     build: .             # Utilise aussi le Dockerfile de ton app Django
+#     container_name: gateway-celery-beat
+#     command: celery -A ton_nom_de_projet beat --loglevel=info
+#     volumes:
+#       - .:/app
+#     environment:
+#       - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
+#     depends_on:
+#       - rabbitmq
+#     networks:
+#       - cloud_net
+
+# networks:
+#   cloud_net:
+#     driver: bridge
+#   guinea_net:
+#     driver: bridge
+
+# volumes:
+#   routeros-data:
+#   wg-data:
+#   rabbitmq-data:        # Persistance des files d'attente RabbitMQ
+
+
+
 services:
-  routeros:
-    image: evilfreelancer/docker-routeros:latest
-    container_name: mikrotik-test
-    cap_add:
-      - NET_ADMIN
-    devices:
-      - /dev/net/tun
-      - /dev/kvm
-    ports:
-      # - "2222:22"      # SSH
-      # - "2223:23"      # Telnet
-      - "80:80"        # Webfig
-      - "8291:8291"    # Winbox 
-      - "8728:8728"    # API
-      - "8729:8729"    # API-SSL
+  db:
+    image: postgres:16-alpine
+    container_name: postgres
+    env_file:
+      - .env
     volumes:
-      - routeros-data:/data
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-djanto}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
-      - default
-      - routeros_net  
+      - djanto_network
 
-
-  vpn:
-    image: softethervpn/vpnserver:latest
-    container_name: vpn-test
-    cap_add:
-      - NET_ADMIN
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: rabbitmq
+    env_file:
+      - .env
     ports:
-      - "443:443/tcp"
-      - "5555:5555/tcp"
-    environment:
-      - SPW=admin123  
-    restart: always
+      - "15672:15672"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     networks:
-      - default
-      - routeros_net  
+      - djanto_network
 
+  web:
+    build: .
+    image: wifi-web:latest
+    container_name: django
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - djanto_network
 
+  celery_worker:
+    build: .
+    image: wifi-web:latest
+    container_name: djanto-celery-worker
+    # Utilise sh pour lancer celery sans passer par entrypoint.sh (migrations)
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["celery -A config worker --loglevel=info"]
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    depends_on:
+      web:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - djanto_network
+
+  celery_beat:
+    build: .
+    image: wifi-web:latest
+    container_name: djanto-celery-beat
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["celery -A config beat --loglevel=info"]
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    depends_on:
+      web:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - djanto_network
 
 networks:
-  routeros_net:
+  djanto_network:
     driver: bridge
 
 volumes:
-  routeros-data:
+  postgres-data:
+  rabbitmq-data:

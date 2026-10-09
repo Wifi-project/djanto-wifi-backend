@@ -1,10 +1,11 @@
 from django.db import models
-from django.contrib.auth.models import AbstractBaseUser
+from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
+
 from app.users.managers import UserManager
 from app.commone.models import Base
 from django.utils import timezone
 
-class User(AbstractBaseUser,Base):
+class User(AbstractBaseUser,PermissionsMixin,Base):
 
     OWNERSYSTEME = "ownersysteme"
     ADMIN = "admin"
@@ -28,9 +29,20 @@ class User(AbstractBaseUser,Base):
     date_joined = models.DateTimeField(default=timezone.now)
 
     USERNAME_FIELD = "email"
-    REQUIRED_FIELDS = ["first_name", "last_name"]
+    REQUIRED_FIELDS = ["first_name", "last_name","phone_number"]
 
     objects = UserManager()
+
+    @property
+    def get_username(self):
+        return f"{self.first_name} {self.last_name}"
+
+    def __str__(self):
+        return self.email
+
+    def clean(self):
+        # On valide le modèle sans exécuter le clean() de AbstractBaseUser
+        super(AbstractBaseUser, self).clean()
 
 
 class OwnerMicrotik(Base):
@@ -40,4 +52,6 @@ class OwnerMicrotik(Base):
         )
     pourcentage = models.IntegerField(default=20)
     carte = models.ImageField(upload_to='carte/')
-    
+
+
+

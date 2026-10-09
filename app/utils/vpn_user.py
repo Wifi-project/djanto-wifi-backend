@@ -25,7 +25,7 @@ async def create_vpn_user(username, password, ip):
     }
 
     headers = {"X-VPNADMIN-PASSWORD": "admin123"}
-    async with httpx.AsyncClient as client:
+    async with httpx.AsyncClient() as client:
         try:
         
             response = await client.post(url, json=payload, headers=headers, verify=False)

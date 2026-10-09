@@ -11,8 +11,16 @@ class ClientBase(ABC):
 
     @abstractmethod
     def urls(self) -> str:
-        pass
+        ...
+
+    @abstractmethod
+    def signature():
+        ...
 
     @abstractmethod
     async def payement(self,amount:Decimal,method:str,number:str,reference:str):
-        pass
+        ...
+
+    @abstractmethod
+    async def payout():
+        ...

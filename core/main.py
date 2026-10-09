@@ -5,6 +5,7 @@ from app.microtiks.urls import microtik_router
 from app.finances.urls import finances_router
 from app.clients.urls import client_router
 from app.subscriptions.urls import subscription
+from app.permissions.urls import permissions
 
 api = NinjaAPI()
 
@@ -14,4 +15,5 @@ api.add_router("/users/", user_router)
 api.add_router("/microtik/", microtik_router)
 api.add_router("/client/", client_router)
 api.add_router("/finance/", finances_router)
-api.add_router("/subscription/vpn/", subscription)
+api.add_router("/subscription/wg/", subscription)
+api.add_router("/permissions/",permissions)
