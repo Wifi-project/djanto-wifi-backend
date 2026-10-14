@@ -175,13 +175,16 @@ class SessionPaginatedResponseSchema(Schema):
     total: int
     totalPage: int
     currentPage: int
-    
+
 
 class ClientBlockedOutSchemas(Schema):
     status: str 
     message: str 
 
 
+
+class GroupIdForDelete(Schema):
+    group_id: list[int]
 
 
 

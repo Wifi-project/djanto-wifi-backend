@@ -12,7 +12,8 @@ from app.clients.schemas import (
     PaginatedResponseVoucherInGroupSchema,
     ClientPaginatedResponseSchema,
     SessionPaginatedResponseSchema,
-    ClientBlockedOutSchemas
+    ClientBlockedOutSchemas,
+    GroupIdForDelete
 )
 from app.permissions.checker import PermissionsChecker
 from app.permissions.enum_permissions import PermissionsEnum
@@ -110,7 +111,7 @@ async def delete_voucher(request,network_slug,voucher_id):
         response=ClientBlockedOutSchemas,
         description="supprimer le group de voucher"
         )
-async def delete_voucher_group(request,network_slug,group_id:list):
+async def delete_voucher_group(request,network_slug,group_id:GroupIdForDelete):
     network = request.network
 
     return await ClientService.delete_voucher_group_service(
