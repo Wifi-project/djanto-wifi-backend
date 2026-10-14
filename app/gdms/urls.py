@@ -319,7 +319,7 @@ def list_profil(request,network_slug:str):
 #-------------------------GESTION DES OWNERS ----------------------------------#
 
 @gdms.post(
-        "{microtik_slug}/owner/create/",
+        "{network_slug}/owner/create/",
         tags=["Gestionnaire Network"],
         auth=[PermissionsChecker(permissions=[], owner=True)]
         )
