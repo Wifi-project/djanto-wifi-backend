@@ -179,7 +179,7 @@ async def reboot_gdms(request,network_slug:str, data:GdmsRebootSchemas) -> dict[
         auth=PermissionsChecker(permissions=[PermissionsEnum.GDMS_DELETE], owner=True, has_subscription=True),
         description="supprimer un device"
 )
-async def delete_device(request,data:GdmsRebootSchemas) -> dict[str,str]:
+async def delete_device(request,network_slug:str,data:GdmsRebootSchemas) -> dict[str,str]:
 
     return await delete_device_service(data.model_dump())
 
@@ -191,7 +191,7 @@ async def delete_device(request,data:GdmsRebootSchemas) -> dict[str,str]:
         auth=PermissionsChecker(permissions=[PermissionsEnum.SSID_BLOCK], owner=True, has_subscription=True),
         description="bloquer un device "
 )
-async def block_ssid(request, data:GdmsDeviceBlockSchemas) -> dict[str,str]:
+async def block_ssid(request,network_slug:str, data:GdmsDeviceBlockSchemas) -> dict[str,str]:
     network = request.network
     data_dict = data.model_dump()
 
@@ -208,7 +208,7 @@ async def block_ssid(request, data:GdmsDeviceBlockSchemas) -> dict[str,str]:
         auth=PermissionsChecker(permissions=[PermissionsEnum.SSID_UNLOCK], owner=True, has_subscription=True),
         description="debloquer un device"
 )
-async def unblock_ssid(request, data:GdmsDeviceBlockSchemas) -> dict[str,str]:
+async def unblock_ssid(request,network_slug:str, data:GdmsDeviceBlockSchemas) -> dict[str,str]:
     network = request.network
     data_dict = data.model_dump()
 
