@@ -1,8 +1,7 @@
 from ninja.errors import HttpError
-from app.clients.models import InfoDeposit
 from app.users.models import User
 from app.finances.models import GainSysteme, Windraw, Status
-from app.microtiks.models import Microtik
+from app.gdms.models import Network
 from django.contrib.auth.hashers import check_password
 from app.finances.utils import calcul_deduction
 from app.api_extern.adapterPayement import AdapterPayement
@@ -28,7 +27,7 @@ def info_deposit_retrive(microtik:Microtik,deposit_slug:str):
 
 
 
-def windraw_service(microtik:Microtik,data:dict, user:User):
+def windraw_service(network:Microtik,data:dict, user:User):
     amount = data.get('amount',0)
     # phone_number = data.get("phone_number","")
     password = data.get("password","")
@@ -53,19 +52,19 @@ def windraw_service(microtik:Microtik,data:dict, user:User):
             message="Le montant minimum pour le retrait est de 10 000 GNF"
         )
     
-    availble_windraw = microtik.amount_available_windrawal
+    availble_windraw = network.amount_available_windrawal
     if availble_windraw < amount :
         raise HttpError(
             status_code=404,
             message="Le motant saisie est superieur au montant disponible pour le retrait."
         )
 
-    amout_windraw,gain = calcul_deduction(amount,microtik.commission_rate)
+    amout_windraw,gain = calcul_deduction(amount,network.commission_rate)
 
     adapter = AdapterPayement(code="djomy")
     
     Windraw.objects.create(
-        microtik=microtik,
+        network=network,
         amount = amout_windraw,
         phone_number = user.phone_number,
         user = user,

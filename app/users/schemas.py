@@ -4,6 +4,7 @@ from decimal import Decimal
 from typing import List, Optional
 from datetime import datetime
 from pydantic import Field, EmailStr
+from datetime import date
 
 class UserResponse(Schema):
     #pour les reponses ou l'utilisateur es renvoyer.
@@ -45,27 +46,41 @@ class UserOutSchema(ModelSchema):
         ]
 
 
-class MicrotikBasicSchema(Schema):
+class NetworkBasicSchema(Schema):
     slug: str
     name: str
     description: str | None
+    network_id: int | str | None = None
     wallet_balance: Decimal
-    users_count: int
-    is_online: bool
+    subscription_expire_at: date | None = None
     admin_blocked: bool
     commission_rate: Decimal
-    amount_available_windrawal: Decimal
+    subscription_at: date | None = None
+    configuration_paid: bool
+    subscription: int
+    days_remaining: int
+
 
 class PermissionSchema(Schema):
     slug: str
     name: str
-    code: str
+    # code: str
 
-class MicrotikOwnerSchema(Schema):
+class PermissionGroupSchemas(Schema):
+    name: str
+
+
+class PermissionGroupInCurrentSchemas(Schema):
+    #utiliser dans current user
+    name: str
+    permissions: list[PermissionSchema]
+
+
+class NetworkkOwnerSchema(Schema):
     slug: str
-    microtik: MicrotikBasicSchema
-    permissions: List[PermissionSchema]  
-    is_active: bool
+    network: NetworkBasicSchema
+    group_permissions: List[PermissionGroupSchemas]
+    status: str
     created_at: datetime
 
 class CurrentUserSchema(Schema):
@@ -77,9 +92,9 @@ class CurrentUserSchema(Schema):
     user_type: str
     address: Optional[str] = None
     is_active: bool
-    microtik_owner_trough: List[MicrotikOwnerSchema]
+    network_owner_trough: List[NetworkkOwnerSchema]
+    custom_permission_groups: list[PermissionGroupInCurrentSchemas]
 
-                
 
 class UserUpdate(Schema):
     first_name: str | None = None
@@ -98,7 +113,7 @@ class UserPasswordUpdate(Schema):
     new_password:str
 
 
-class MicrotikInfo(Schema):
+class NetworkInfo(Schema):
     slug:str
     name: str
     description: str
@@ -114,7 +129,7 @@ class UserRetrieveScheama(Schema):
     address: str
     is_active: bool
     user_type: str 
-    owners_microtik : list[MicrotikInfo]
+    owners_network : list[NetworkInfo]
 
 
 class UserOwnerOutSchema(Schema):

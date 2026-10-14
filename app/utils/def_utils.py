@@ -1,10 +1,7 @@
 import secrets
 import string
-import routeros_api
-from app.microtiks.schemas import ProfilDuratinEnum
+from app.gdms.schemas import ProfilDuratinEnum
 from app.users.models import User
-from app.microtiks.models import Microtik
-from ninja.errors import HttpError
 import re
 
 def generer_code_unique(longueur=8):
@@ -14,27 +11,6 @@ def generer_code_unique(longueur=8):
     )
 
     return ''.join(secrets.choice(character) for _ in range(longueur))
-
-
-def connect_microtik(ip, username, password):
-    """
-    Initialise et teste la connexion au MikroTik via l'IP WireGuard.
-    Retourne l'objet connection utilisable si réussi, ou un dictionnaire d'erreur.
-    """
-    connection = routeros_api.RouterOsApiPool(
-        host=ip, 
-        username=username, 
-        password=password,
-        port=8728,
-        plaintext_login=True
-    )
-    try:
-        api = connection.get_api() 
-        return {"status": True, "pool": connection, "api": api}
-    except Exception as e:
-        try: connection.disconnect()
-        except: pass
-        return {"status": False, "message": f"Erreur de connexion VPN/API. \n *** {e}"}
 
 
 
@@ -47,65 +23,6 @@ def profil_duration(duration: int, type_session: ProfilDuratinEnum) -> str:
         return f"{duration}d 00:00:00", {'d':int(duration),'h':0,'m':0}
     return "00:00:00",{'d':0,'h':0,'m':0}
 
-
-
-def creer_ticket_code(
-        microtik:Microtik,
-        code_paye:list, 
-        profile_name:str, 
-        limit_uptime:str, 
-        comment:str) -> dict:
-
-    wg = microtik.subscriptionwg
-
-    res_conn = connect_microtik(
-        ip=wg.wg_ip,  
-        username=wg.mikrotik_username,
-        password=wg.mikrotik_password  
-    )
-
-    if not res_conn["status"]:
-        return {"status": "failed", "message": res_conn["message"]}
-
-    pool = res_conn["pool"]
-    api = res_conn["api"]
-    list_user = api.get_resource('/ip/hotspot/user')
-    
-    codes_crees = 0
-    codes_existants = 0
-    code_created = []
-
-    try:
-        for code in code_paye:
-            try:
-                list_user.add(
-                    name=code, 
-                    password=code, 
-                    profile=profile_name,
-                    limit_uptime=limit_uptime,
-                    comment=comment
-                )
-                codes_crees += 1
-                code_created.append(code)
-
-            except Exception as e:
-                if "already exists" in str(e).lower():
-                    codes_existants += 1
-                    continue
-                else:
-                    raise e
-
-        return {
-            "status": "success",
-            "message": f"{codes_crees} ticket(s) créé(s) avec succès. ({codes_existants} déjà existant(s))",
-            "codes": code_created
-        }
-    
-    except Exception as e:
-        return {"status": "failed", "message": f"Erreur MikroTik critique durant la génération : {e}"}
-    
-    finally:
-        pool.disconnect()
 
 
 

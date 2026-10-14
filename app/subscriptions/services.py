@@ -4,22 +4,20 @@ from http import HTTPStatus
 from typing import TYPE_CHECKING
 from app.api_extern.adapterPayement import AdapterPayement
 from app.subscriptions.models import (
-    SubscriptionWG,
-    SubscriptionCategorieWg, 
+    SubscriptionCategorie, 
     SubscriptioPriceBase,
 
     )
 from asgiref.sync import sync_to_async
 from decimal import Decimal
-from app.subscriptions.tasks import subscription_webhook_task
+# from app.subscriptions.tasks import subscription_webhook_task
 from app.transactions.models import Transaction,TransactionStatus,TransactionType
-from app.subscriptions.models import SubscriptionWG,ConfigurationPrice
-from app.microtiks import gms
+from app.subscriptions.models import ConfigurationPrice
+from app.gdms.models import Network
 from django.utils import timezone
 from datetime import timedelta
+from app.subscriptions.models import SubscriptionCategorie
 
-if TYPE_CHECKING:
-    from app.microtiks.models import Microtik
 
 
 
@@ -57,7 +55,7 @@ def _naturalize_days(days: int = 0, months: int = 0) -> int:
     return days + (months * 30)
 
 
-def create_categorie_abonnement(data: dict) -> SubscriptionCategorieWg:
+def create_categorie_abonnement(data: dict) -> SubscriptionCategorie:
     days = data.get("days", 0)
     months = data.get("months", 0)
     name = data.get("name", "").strip()
@@ -91,7 +89,7 @@ def create_categorie_abonnement(data: dict) -> SubscriptionCategorieWg:
     
     price = price.quantize(Decimal('0.01')) * total_days
 
-    return SubscriptionCategorieWg.objects.create(
+    return SubscriptionCategorie.objects.create(
         name=name,
         days=total_days,
         price=price,
@@ -101,14 +99,14 @@ def create_categorie_abonnement(data: dict) -> SubscriptionCategorieWg:
 
 
 
-def update_categorie_abonnement(slug,data:dict) -> SubscriptionCategorieWg:
+def update_categorie_abonnement(slug,data:dict) -> SubscriptionCategorie:
     days = data.pop("days",0)
     months = data.pop("months",0)
     total_days = _naturalize_days(days=days,months=months)
 
     data["days"] = total_days if total_days > 0 else ...
 
-    instance = SubscriptionWG.objects.filter(slug=slug).first()
+    instance = SubscriptionCategorie.objects.filter(slug=slug).first()
     
     if not instance:
         raise HttpError(
@@ -125,7 +123,7 @@ def update_categorie_abonnement(slug,data:dict) -> SubscriptionCategorieWg:
 
 #------------- La suscription aux abonement --------------- #
 
-async def subscrition_abonnement_service(data: dict, microtik: Microtik): 
+async def subscrition_abonnement_service(data: dict, network: Network): 
     phone_number = data.get('phone_number', "") 
     category_slug = data.get("category_slug", "") 
     paymentMethod = data.get('paymentMethod', "") 
@@ -137,17 +135,23 @@ async def subscrition_abonnement_service(data: dict, microtik: Microtik):
         ) 
         
     try: 
-        category = await SubscriptionCategorieWg.objects.aget(slug=category_slug) 
-    except SubscriptionCategorieWg.DoesNotExist: 
+        category = await SubscriptionCategorie.objects.aget(slug=category_slug) 
+    except SubscriptionCategorie.DoesNotExist: 
         raise HttpError( 
             status_code=HTTPStatus.NOT_FOUND, 
             message="Catégorie d'abonnement non trouvée" 
         ) 
-        
+
+    if not network.configuration_paid:
+        raise HttpError(
+            status_code=HTTPStatus.BAD_REQUEST,
+            message="Vous devez d'abord payer les frais de configurations."
+        )
+    
     transaction = await Transaction.objects.acreate( 
         phone_number=phone_number,
         amount = category.price,
-        microtik = microtik,
+        network = network,
         category=category, 
         payment_method = paymentMethod,
         status=TransactionStatus.PENDING,
@@ -167,16 +171,10 @@ async def subscrition_abonnement_service(data: dict, microtik: Microtik):
         transaction.transaction_id = response.get("transactionId")
         await transaction.asave(update_fields=['transaction_id'])
 
-        subs = await SubscriptionWG.objects.filter(microtik=microtik).afirst()
-        if not subs:
-            raise HttpError(
-                status_code=404,
-                message='aucun microtik'
-            )
-
-        subs.expire_at = timezone.now() + timedelta(days=transaction.category.days)
-        await subs.asave(update_fields=["expire_at"])
-
+        network.subscription_at = timezone.now()
+        network.subscription_expire_at = timezone.now() + timedelta(days=transaction.category.days)
+        await network.asave(update_fields=["subscription_expire_at"])
+    
         return {
             'status':'success',
             'message':'payement initier avec success.'
@@ -189,21 +187,8 @@ async def subscrition_abonnement_service(data: dict, microtik: Microtik):
     }
 
 
-def update_suscription_access(microtik_slug:str,data:dict):
-    infos = SubscriptionWG.objects.filter(microtik__slug = microtik_slug).first()
-    now = timezone.now()
 
-    for key, value in data.items():
-        setattr(infos,key,value)
-    if infos.expire_at is None:
-        infos.expire_at = now + timedelta(days=30)
-        infos.is_active = True
-    infos.save()
-
-    return infos
-
-
-async def init_configuration(microtik, data:dict):
+async def init_configuration(network:Network, data:dict):
     price = await  ConfigurationPrice.objects.afirst()
     paymentMethod = data.get('paymentMethod')
     phone = data.get('phone_number')
@@ -211,7 +196,7 @@ async def init_configuration(microtik, data:dict):
     transaction = await Transaction.objects.acreate( 
         phone_number= phone,
         amount = price.price,
-        microtik = microtik,
+        network = network,
         payment_method = paymentMethod,
         status=TransactionStatus.PENDING,
         type = TransactionType.CONFIGURATION
@@ -230,24 +215,22 @@ async def init_configuration(microtik, data:dict):
         transaction.transaction_id = response.get("transactionId")
         await transaction.asave(update_fields=['transaction_id'])
 
-        subs = await SubscriptionWG.objects.filter(microtik=microtik).afirst()
+        network.subscription_at = timezone.now()
+        network.configuration_paid = True
+        network.subscription_expire_at = timezone.now() + timedelta(days=30)
+        await network.asave(update_fields=["subscription_expire_at","configuration_paid"])
 
-        if not subs:
-            raise HttpError(
-                status_code=404,
-                message='aucun microtik'
-            )
-
-        subs.expire_at = timezone.now() + timedelta(days=30)
-        await subs.asave(update_fields=["expire_at"])
+        return {
+            'status':'success',
+            'message':'initiation du payement de configuration effectuer avec success.'
+        }
 
     return {
-        'status':'success',
-        'message':'initiation du payement de configuration effectuer avec success.'
+        'status':'failled',
+        'message':'initiation du payement echouer.'
     }
 
 
-
-def return_url(data: dict):
-    """Callback après paiement"""
-    subscription_webhook_task.delay(data=data)
+# def return_url(data: dict):
+#     """Callback après paiement"""
+#     subscription_webhook_task.delay(data=data)

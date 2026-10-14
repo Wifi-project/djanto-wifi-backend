@@ -1,6 +1,5 @@
 from ninja import Router
 from ninja.pagination import paginate, LimitOffsetPagination
-from app.users.deps import GlobalAuth,Auth,IsOwnerMicrotik, HasValidVpn
 from app.permissions.checker import PermissionsChecker
 from app.permissions.enum_permissions import PermissionsEnum
 

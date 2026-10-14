@@ -18,20 +18,20 @@ app.conf.imports = (
 )
 
 # 5. Planning Celery Beat
-app.conf.beat_schedule = {
-    'sync-database-with-mikrotik-every-1-hour': {
-        'task': 'clients.tasks.sync_all_routers_task', 
-        'schedule': crontab(minute='0', hour='*')
-    },
-    # 'tache-chaque-jour-a-minuit': {
-    #     'task': 'subscriptions.tasks.daily_subscription_check_task',
-    #     'schedule': crontab(minute='0', hour='0'), 
-    # },
-    'tache-chaque-jour-a-minuit': {
-        'task': 'subscriptions.tasks.daily_subscription_check_task',
-        'schedule': crontab(minute='*'),  # Se déclenche toutes les minutes
-    },
-}
+# app.conf.beat_schedule = {
+#     'sync-database-with-mikrotik-every-1-hour': {
+#         'task': 'clients.tasks.sync_all_routers_task', 
+#         'schedule': crontab(minute='0', hour='*')
+#     },
+#     'tache-chaque-jour-a-minuit': {
+#         'task': 'subscriptions.tasks.daily_subscription_check_task',
+#         'schedule': crontab(minute='0', hour='0'), 
+#     },
+#     'tache-chaque-jour-a-minuit': {
+#         'task': 'subscriptions.tasks.daily_subscription_check_task',
+#         'schedule': crontab(minute='*'),  # Se déclenche toutes les minutes
+#     },
+# }
 
 
 # 6. Auto-détection des tâches dans vos apps Django

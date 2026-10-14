@@ -3,6 +3,7 @@ from datetime import datetime
 from ninja.schema import Schema,Field
 from uuid import UUID
 from decimal import Decimal
+from typing import List, Optional
 
 class PaymentStatus(str, Enum):
     SUCCESS = "SUCCESS"
@@ -37,11 +38,67 @@ class PaymentResponseSchema(Schema):
 
 
 
-#-------------CLIENT SCHEMAS------------#
+#-------------Voucher SCHEMAS------------#
+class EffectDurationMapSchema(Schema):
+    d: int
+    h: int
+    m: int
 
-class MicrotikNameOut(Schema):
-    name: str 
+class VoucherSchema(Schema):
+    id: int
+    name: str
+    vocherNum: int
+    usedVoucherNum: int
+    effectDurationMap: EffectDurationMapSchema
+    createEmail: str
+    upRate: int
+    upRateUnit: int
+    downRate: Optional[int] = None
+    downRateUnit: int
+    usageQuota: Optional[int] = None
+    usageUnit: int
+    description: str
+    createTimeStr: str
+    expirationTimeStr: str
+    availableVoucherNum: int
+    usageLimitType: int
 
+class VoucherGroupListResponseSchema(Schema):
+    result: List[VoucherSchema]
+
+    class Config:
+        from_attributes=True
+
+
+#-----la liste des vouchers dans un group 
+
+class DetailVoucherInGourpSchema(Schema):
+    id: int
+    password: str
+    state: int
+    endUseTimeStr: str
+    deviceNum: int
+    usedDeviceNum: int
+    effectDurationMap: EffectDurationMapSchema
+    upRate: Optional[int] = None
+    upRateUnit: int
+    downRate: Optional[int] = None
+    downRateUnit: int
+    usageQuota: Optional[int] = None
+    usageUnit: int
+    isCanRenew: int
+    remainUsageQuota: Optional[int] = None
+    usageLimitType: int
+
+
+class PaginatedResponseVoucherInGroupSchema(Schema):
+    result: List[DetailVoucherInGourpSchema]
+    total: int
+    totalPage: int
+    currentPage: int
+
+    class Config:
+        from_attributes=True
 
 
 class VoucherIn(Schema):
@@ -56,61 +113,73 @@ class VoucherCreateResponse(Schema):
     limit_uptime: str
     
 
-class ClientOut(Schema):
-    slug: str
-    phone_number:str | None = None
-    code_username:str
-    code_password:str
-    limit_uptime:str | None = None
-    profil_name:str
-    amount: Decimal
-    microtik_name: str = Field(None, alias="microtik.name")
-    generate: str 
-    is_sold: bool
-    status: str
-    created_at: datetime | None = None
+#----------------------CLIENTS SCHEMAS---------------------
 
+class ClientItemSchema(Schema):
+    id: int
+    networkId: int
+    clientId: str
+    name: str
+    ipv4: str
+    ipv6: str
+    channel: int
+    channelClass: int
+    totalBytes: int
+    txBytes: int
+    rxBytes: int
+    rssi: int
+    txRate: int
+    rxRate: int
+    apId: str
+    ssidId: int
+    ssid: str
+    portalEnable: int
+    assoctime: str
+    dhcpManufacture: str
+    dhcpOs: str
+    block: int
+    vlanId: str
+    lastSeen: str
+    firstSeen: str
+
+class ClientPaginatedResponseSchema(Schema):
+    result: List[ClientItemSchema]
+    total: int
+    totalPage: int
+    currentPage: int
 
     class Config:
         from_attributes=True
 
 
-class ClientRetrieve(ClientOut):
-    microtik: MicrotikNameOut
+#online
 
-
-class ClientActifSchema(Schema):
-    username: str
-    ip: str
-    connexion_time: str  
-    expire_in: int
-
-
-class ClientNoExpireSchema(Schema):
+class SessionItemSchema(Schema):
     name: str
-    limit_uptime: str
-    uptime: str 
-    address: str
-    profile: str
-    disabled: str
+    clientId: str
+    apName: str
+    apId: str
+    ssidRemark: Optional[str] = None
+    ssid: str
+    rssi: int
+    authType: str
+    policyName: str
+    loginTimeStr: str
+    portalTimeDisplay: str
+    portalInfo: str
+    portalStats: int
+
+class SessionPaginatedResponseSchema(Schema):
+    result: List[SessionItemSchema]
+    total: int
+    totalPage: int
+    currentPage: int
+
 
 
 class ClientBlockedOutSchemas(Schema):
     status: str 
     message: str 
-
-
-# --- Group client ------------------
-
-class GroupClientOutSchema(Schema):
-    slug: str
-    name: str 
-    clients: ClientOut
-    number_client: int
-    created_at: str
-
-    class Config:
-        from_attributes = True;
 
 
 

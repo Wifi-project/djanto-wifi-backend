@@ -1,6 +1,6 @@
 from django.db import models
-from app.microtiks.models import Microtik,Profil
-from app.subscriptions.models import SubscriptionCategorieWg
+from app.gdms.models import Profil,Network
+from app.subscriptions.models import SubscriptionCategorie
 from app.commone.models import Base
 
 
@@ -43,8 +43,8 @@ class Transaction(Base):
         max_digits=10, 
         decimal_places=2
         )
-    microtik = models.ForeignKey(
-        Microtik, on_delete=models.CASCADE, 
+    network = models.ForeignKey(
+        Network, on_delete=models.CASCADE, 
         related_name='microtik_transactions', 
         related_query_name='microtik_transaction'
         )
@@ -55,7 +55,7 @@ class Transaction(Base):
         blank=True,
         )
     category = models.ForeignKey(
-        SubscriptionCategorieWg, 
+        SubscriptionCategorie, 
         on_delete=models.PROTECT,
         related_name="category_transactions",
         null=True, 

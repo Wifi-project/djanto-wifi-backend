@@ -9,7 +9,7 @@ from app.commone.email import send_mail_creation
 
 def user_creation(data:dict=[str,str | bool] ):
     from app.permissions.models import PermissionGroup
-    from app.microtiks.utils import PermissionGroupEnum
+    from app.gdms.utils import PermissionGroupEnum
 
     type_user = data.get('user_type','')
 
@@ -31,7 +31,7 @@ def user_creation(data:dict=[str,str | bool] ):
 
     group = None
     if type_user == User.OWNERMICROTIK:
-        group = PermissionGroup.objects.filter(slug=PermissionGroupEnum.INIT_PROPRIETAIRE_MICROTIK.value).first()
+        group = PermissionGroup.objects.filter(slug=PermissionGroupEnum.INIT_PROPRIETAIRE_NETWORK.value).first()
     if type_user == User.ADMIN:
         group = PermissionGroup.objects.filter(slug = PermissionGroupEnum.ADMINISTRATION.value).first()
 

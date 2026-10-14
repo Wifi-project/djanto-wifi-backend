@@ -31,32 +31,54 @@ class PermissionsEnum(str, Enum):
     ADDRESS_READ = "address:read"
     ADDRESS_UPDATE = "address:update"
 
-    # --- Owner Microtik ---
-    OWNER_MICROTIK_CREATE = "owner_microtik:create"
-    OWNER_MICROTIK_READ = "owner_microtik:read"
-    OWNER_MICROTIK_UPDATE = "owner_microtik:update"
-    OWNER_MICROTIK_DELETE = "owner_microtik:delete"
+    # --- Owner Network ---
+    OWNER_NETWORK_CREATE = "owner_network:create"
+    OWNER_NETWORK_READ = "owner_network:read"
+    OWNER_NETWORK_UPDATE = "owner_network:update"
+    OWNER_NETWORK_DELETE = "owner_network:delete"
 
-    # --- Microtik (Routeurs) ---
-    MICROTIK_CREATE = "microtik:create"
-    MICROTIK_READ = "microtik:read"
-    MICROTIK_UPDATE = "microtik:update"
-    MICROTIK_DELETE = "microtik:delete"
-    MICROTIK_BLOCK = "microtik:block"
-    MICROTIK_UNBLOCK = "microtik:unblock"
-    MICROTIK_ADD_OWNER = "microtik:add_owner"
-    MICROTIK_REMOVE_OWNER = "microtik:remove_owner"
-    MICROTIK_CREATE_OWNER = "microtik:create_owner"
-    MICROTIK_ADD_PERMISSIONS = "microtik:add_permissions"
-    MICROTIK_REMOVE_PERMISSIONS = "microtik:remove_permissions"
-    MICROTIK_SYNC = "microtik:sync"
+    # --- Network (Routeurs) ---
+    NETWORK_CREATE = "network:create"
+    NETWORK_READ = "network:read"
+    NETWORK_UPDATE = "network:update"
+    NETWORK_DELETE = "network:delete"
+    NETWORK_BLOCK = "network:block"
+    NETWORK_UNBLOCK = "network:unblock"
+    NETWORK_ADD_OWNER = "network:add_owner"
+    NETWORK_REMOVE_OWNER = "network:remove_owner"
+    NETWORK_CREATE_OWNER = "network:create_owner"
+    NETWORK_ADD_PERMISSIONS = "network:add_permissions"
+    NETWORK_REMOVE_PERMISSIONS = "network:remove_permissions"
+
+    #----- Gdms ---------------------
+    GDMS_CREATE = 'gdms:create'
+    GDMS_READ = 'gdms:read'
+    GDMS_UPDATE = 'gdms:update'
+    GDMS_REBOOT = 'gdms:reboot'
+    GDMS_DELETE = 'gdms:delete'
+    GDMS_BLOCK = 'gdms:block'
+    GDMS_UNBLOCK = 'gdms:unblock'
+
+    #----- Ssid ---------------------
+    SSID_CREATE = 'ssid:create'
+    SSID_READ = 'ssid:read'
+    SSID_UPDATE = 'ssid:update'
+    SSID_DELETE = 'ssid:delete'
+    SSID_BLOCK = 'ssid:block'
+    SSID_UNLOCK = 'ssid:unblock'
+
+    #-------- Device --------------
+    DEVICE_CREATE = 'device:create'
+    DEVICE_UPDATE = 'device:update'
+    DEVICE_READ = 'device:read'
+    DEVICE_DELETE = 'device:delete'
+    
 
     # --- Profils (Hotspot Profiles) ---
     PROFIL_CREATE = "profil:create"
     PROFIL_READ = "profil:read"
     PROFIL_UPDATE = "profil:update"
     PROFIL_DELETE = "profil:delete"
-    PROFIL_SYNC = "profil:sync"
 
     # --- Finance & Retraits (Windraw / Gains) ---
     FINANCE_READ_SUMMARY = "finance:read_summary"
@@ -92,7 +114,8 @@ class PermissionsEnum(str, Enum):
 
     # --- Tickets / Clients Hotspot (Modèle Client généré après paiement) ---
     CLIENT_READ = "client:read"
-    CLIENT_GROUP = "client:read_group"
+    CLIENT_GROUP_READ = "client:read_group"
+    CLIENT_GROUP_DELETE = "client:delete_group"
     CLIENT_CREATE = "client:create"
     CLIENT_DELETE = "client:delete"
     CLIENT_DISCONNECT = "client:disconnect"  # Déconnecter un utilisateur actif du MikroTik
@@ -156,31 +179,54 @@ class PermissionsEnum(str, Enum):
             "address:update": "Mise à jour des adresses",
 
             # Owner Microtik
-            "owner_microtik:create": "Création d'un propriétaire MikroTik",
-            "owner_microtik:read": "Lecture des détails d'un propriétaire MikroTik",
-            "owner_microtik:update": "Mise à jour d'un propriétaire MikroTik",
-            "owner_microtik:delete": "Suppression d'un propriétaire MikroTik",
+            "owner_network:create": "Création d'un propriétaire network",
+            "owner_network:read": "Lecture des détails d'un propriétaire network",
+            "owner_network:update": "Mise à jour d'un propriétaire network",
+            "owner_network:delete": "Suppression d'un propriétaire network",
 
-            # Microtik
-            "microtik:create": "Ajout d'un nouveau routeur MikroTik",
-            "microtik:read": "Lecture de la liste et des détails des routeurs MikroTik",
-            "microtik:update": "Mise à jour des configurations du routeur MikroTik",
-            "microtik:delete": "Suppression d'un routeur MikroTik",
-            "microtik:block": "Blocage administratif d'un routeur MikroTik",
-            "microtik:add_owner": "ajouter un admin pour le microtik",
-            "microtik:remove_owner": "retirer le admin",
-            "microtik:create_owner": "cree un compte admin",
-            "microtik:add_permissions": "ajouter une permission a un admin",
-            "microtik:remove_permissions": "retirer une permission a un admin",
-            "microtik:unblock": "Déblocage d'un routeur MikroTik",
-            "microtik:sync": "Synchronisation manuelle avec le routeur MikroTik",
+            # Network
+            "network:create": "Ajout d'un nouveau routeur network",
+            "network:read": "Lecture de la liste et des détails des routeurs network",
+            "network:update": "Mise à jour des configurations du routeur network",
+            "network:delete": "Suppression d'un routeur network",
+            "network:block": "Blocage administratif d'un routeur network",
+            "network:add_owner": "ajouter un admin pour le network",
+            "network:remove_owner": "retirer le admin",
+            "network:create_owner": "cree un compte admin",
+            "network:add_permissions": "ajouter une permission a un admin",
+            "network:remove_permissions": "retirer une permission a un admin",
+            "network:unblock": "Déblocage d'un routeur network",
+            "network:sync": "Synchronisation manuelle avec le routeur network",
+
+            # Gdms
+            "gdms:create": "Création d'un Gdms",
+            "gdms:read": "Lecture des Gdms",
+            "gdms:update": "Mise à jour des Gdms",
+            "gdms:delete": "Suppression des Gdms",
+            "gdms:block": "Blocage d'un Gdms",
+            "gdms:unblock": "Déblocage d'un Gdms",
+            "gdms:reboot": "redemarrer un Gdms",
+
+            # Ssid
+            "ssid:create": "Création d'un SSID",
+            "ssid:read": "Lecture des SSID",
+            "ssid:update": "Mise à jour des SSID",
+            "ssid:delete": "Suppression des SSID",
+            "ssid:block": "blocker un ssid",
+            "ssid:unblock": "deblocker un ssid",
+
+            # Device
+            "device:create": "Création d'un device",
+            "device:update": "Mise à jour d'un device",
+            "device:read": "Lecture des devices",
+            "device:delete": "Suppression d'un device",
 
             # Profils
             "profil:create": "Création d'un profil tarifaire Hotspot",
             "profil:read": "Lecture des profils Hotspot",
             "profil:update": "Mise à jour des tarifs et vitesses d'un profil",
             "profil:delete": "Suppression d'un profil Hotspot",
-            "profil:sync": "Synchronisation des profils avec le MikroTik",
+            "profil:sync": "Synchronisation des profils avec le network",
 
             # Finance
             "finance:read_summary": "Consulter le résumé financier (solde, gains, statistiques)",
@@ -236,6 +282,7 @@ class PermissionsEnum(str, Enum):
             "client:blocked": "Bloquer un client sur le routeur MikroTik",
             "client:unblocked": "Débloquer un client sur le routeur MikroTik",
             "client:read_group": "lire les groupe de client.",
+            "client:delete_group": "supprimer un group de client",
 
             # Monitoring
             "monitoring:read": "Voir les métriques en direct (CPU, RAM, état en ligne, clients connectés)",

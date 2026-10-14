@@ -48,9 +48,9 @@ INSTALLED_APPS = [
 
     'app.adminsystem',
     'app.clients',
-    'app.microtiks',
+    'app.gdms',
     'app.users',
-    'app.finances',
+    # 'app.finances',
     'app.subscriptions',
     'app.permissions',
     'app.transactions',
@@ -117,17 +117,17 @@ DATABASES = {
 #     }
 # }
 
-DATABASE_URL = os.getenv('DATABASE_URL')
+# DATABASE_URL = os.getenv('DATABASE_URL')
 
-if DATABASE_URL:
-    DATABASES['default'] = dj_database_url.parse(
-        DATABASE_URL,
-        conn_max_age=600,
-        conn_health_checks=True,
-    )
-    DATABASES['default']['OPTIONS'] = {
-        'connect_timeout': 10,
-    }
+# if DATABASE_URL:
+#     DATABASES['default'] = dj_database_url.parse(
+#         DATABASE_URL,
+#         conn_max_age=600,
+#         conn_health_checks=True,
+#     )
+#     DATABASES['default']['OPTIONS'] = {
+#         'connect_timeout': 10,
+#     }
 
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators

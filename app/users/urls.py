@@ -1,3 +1,5 @@
+from __future__ import annotations
+from typing import TYPE_CHECKING
 from ninja import Router
 from ninja_simple_jwt.auth.ninja_auth import HttpJwtAuth
 from ninja.pagination import paginate, LimitOffsetPagination 
@@ -17,10 +19,12 @@ from app.users.services import (
     user_creation, update_user_service,
     reset_password,retrive_user_service
     )
-from app.permissions.checker import PermissionsChecker
-from app.permissions.enum_permissions import PermissionsEnum
 from django.contrib.auth.hashers import check_password
 from app.utils.password_check import check_security_password
+
+from app.permissions.checker import PermissionsChecker
+from app.permissions.enum_permissions import PermissionsEnum
+
 
 user_router = Router(tags=['Users'])
 

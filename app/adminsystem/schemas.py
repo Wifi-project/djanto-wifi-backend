@@ -1,7 +1,6 @@
 from ninja.schema import Schema
 from ninja import ModelSchema
 from decimal import Decimal
-from app.microtiks.models import Microtik
 from app.users.models import User 
 from app.users.schemas import UserResponse
 from typing import List

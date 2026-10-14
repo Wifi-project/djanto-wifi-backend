@@ -1,15 +1,13 @@
 from abc import ABC, abstractmethod
-from typing import List, TYPE_CHECKING
+from typing import List
+
+from django.apps import apps
+from django.contrib.auth import get_user_model
 from django.core.exceptions import ObjectDoesNotExist
+
 from ninja.errors import HttpError
 from ninja.security import HttpBearer
 from ninja_simple_jwt.jwt.token_operations import decode_token, TokenTypes
-
-from app.users.models import User
-from app.microtiks.models import Microtik
-
-if TYPE_CHECKING:
-    from app.microtiks.models import Microtik
 
 
 class BasePermission(ABC):
@@ -18,58 +16,61 @@ class BasePermission(ABC):
         return True
 
 
-class IsOwnerMicrotik(BasePermission):
+class IsOwnerNetwork(BasePermission):
     def has_permission(self, request) -> bool:
-        microtik_slug = request.resolver_match.kwargs.get("microtik_slug", "")
-        user = request.user 
+        Network = apps.get_model("gdms", "Network")
+        User = get_user_model()
 
-        if not microtik_slug:
+        network_slug = request.resolver_match.kwargs.get("network_slug", "")
+        user = request.user
+
+        if not network_slug:
             raise HttpError(400, "Slug manquant")
 
         query = (
-            Microtik.objects
-            .prefetch_related("profils", "clients","owners","microtik_owners")
-            .select_related("subscriptionwg")
-            .filter(slug=microtik_slug)
+            Network.objects
+            .prefetch_related(
+                "network_owners", "gdms_network", "profils",
+                "groups_vouchers", "clients"
+            )
+            .filter(slug=network_slug)
         )
 
         if getattr(request.user, "user_type", None) not in [User.ADMIN, User.OWNERSYSTEME]:
-            query = query.filter(owners= user)
+            query = query.filter(owners=user)
 
+        network = query.first()
 
-        microtik = query.first()
+        if not network:
+            raise HttpError(404, "Aucun network trouvé")
 
-        if not microtik:
-            raise HttpError(404, "Aucun microtik trouvé")
-
-        # microtik_owner = microtik.owners.filter(user=user).first()
-        # permissions = set(perm for perm in microtik_owner.permissions.all())
-
-        # if not all()
-
-        request.microtik = microtik
+        request.network = network
         return True
 
 
-class HasValidWG(BasePermission):
+class HasValidSubscription(BasePermission):
     def has_permission(self, request) -> bool:
-        microtik = getattr(request, "microtik", None)
+        network = getattr(request, "network", None)
 
-        if not microtik:
-            raise HttpError(500, "Microtik non chargé")
+        if not network:
+            raise HttpError(500, "Network non chargé")
 
-        try:
-            wg = getattr(microtik, "subscriptionwg", None)
-        except ObjectDoesNotExist:
-            wg = None
+        if not getattr(network, "subscription_expire_at", None):
+            raise HttpError(
+                status_code=403,
+                message="Vous n'avez pas d'abonnement pour effectuer cette action. "
+                        "Veuillez souscrire à un abonnement."
+            )
 
-        if not wg:
-            raise HttpError(403, "Aucun abonnement VPN trouvé")
+        if not getattr(network, "configuration_paid", False):
+            raise HttpError(
+                status_code=403,
+                message="Vous n'avez pas payé les frais de configuration du réseau."
+            )
 
-        if not getattr(wg, "validation", False):
-            raise HttpError(403, "Abonnement VPN expiré ou invalide")
+        if not network.subscription:
+            raise HttpError(403, "Abonnement expiré ou invalide")
 
-        request.subscription = wg
         return True
 
 
@@ -83,6 +84,9 @@ class UserPermission(BasePermission):
         ]
 
     def has_permission(self, request) -> bool:
+        NetworkOwner = apps.get_model("gdms", "NetworkOwner")
+        Permissions = apps.get_model("permissions", "Permissions")
+
         user = request.user
 
         if not self.permissions:
@@ -95,27 +99,34 @@ class UserPermission(BasePermission):
             user.custom_permission_groups.values_list("permissions__code", flat=True)
         )
 
-        microtik = getattr(request, "microtik", None)
-        microtik_permissions = set()
+        network = getattr(request, "network", None)
+        network_permissions = set()
 
-        if microtik:
-            microtik_owner = getattr(user, 'microtik_owner_trough', None)
-            if microtik_owner:
-                microtik_owner_instance = microtik_owner.filter(microtik=microtik).first()
-                if not microtik_owner_instance and microtik_owner_instance.is_active is None:
-                    raise HttpError(403, "Vous avez été bloquer de ce routeur.")
-                
-                microtik_permissions = set(
-                    microtik_owner_instance.permissions.values_list('code', flat=True)
-                )
+        if network:
+            owner_network = (
+                NetworkOwner.objects
+                .filter(network=network, user=user)
+                .select_related("network")
+                .prefetch_related("group_permissions")
+                .first()
+            )
 
-        all_permissions = global_permissions | microtik_permissions
+            if owner_network:
+                groups = owner_network.group_permissions.all()
+                if groups:
+                    network_permissions = set(
+                        Permissions.objects
+                        .filter(permissionsGroup__in=groups)
+                        .values_list("code", flat=True)
+                        .distinct()
+                    )
+
+        all_permissions = global_permissions | network_permissions
 
         if not all(perm in all_permissions for perm in self.permissions):
             raise HttpError(403, "Permission refusée")
 
         return True
-
 
 
 class Auth(BasePermission):
@@ -126,13 +137,20 @@ class Auth(BasePermission):
 class PermissionsChecker(HttpBearer):
     openapi_name = "JWT"
 
-    def __init__(self, permissions: List = None, owner: bool = False, hasWG: bool = False):
+    def __init__(
+        self,
+        permissions: List = None,
+        owner: bool = False,
+        has_subscription: bool = False,
+    ):
         self.permissions = permissions if permissions is not None else []
         self.owner = owner
-        self.hasWG = hasWG
+        self.has_subscription = has_subscription
         super().__init__()
 
     def authenticate(self, request, token: str):
+        User = get_user_model()
+
         if not token:
             return None
 
@@ -140,17 +158,21 @@ class PermissionsChecker(HttpBearer):
             decoder_token = decode_token(
                 token=token,
                 token_type=TokenTypes.ACCESS,
-                verify=True
+                verify=True,
             )
         except Exception:
             raise HttpError(401, "Token invalide ou expiré")
 
         user_id = decoder_token.get("user_id")
         user = (
-            User.objects.filter(pk=user_id)
-            .prefetch_related("owners_microtik","microtik_owner_trough")
-            .first()
+            User.objects
+            .filter(pk=user_id)
+            .prefetch_related(
+                "custom_permission_groups",
+                "custom_permission_groups__permissions",
             )
+            .first()
+)
 
         if not user or not user.is_active:
             raise HttpError(401, "Utilisateur introuvable ou inactif")
@@ -158,10 +180,10 @@ class PermissionsChecker(HttpBearer):
         request.user = user
 
         if self.owner:
-            IsOwnerMicrotik().has_permission(request)
+            IsOwnerNetwork().has_permission(request)
 
-        if self.hasWG:
-            HasValidWG().has_permission(request)
+        if self.has_subscription:
+            HasValidSubscription().has_permission(request)
 
         if len(self.permissions) > 0:
             UserPermission(self.permissions).has_permission(request)

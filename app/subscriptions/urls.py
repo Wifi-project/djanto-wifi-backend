@@ -3,7 +3,7 @@ from ninja import Router
 from ninja.pagination import LimitOffsetPagination, paginate
 from ninja.errors import HttpError
 from app.subscriptions.models import (
-    SubscriptionCategorieWg,
+    SubscriptionCategorie,
     SubscriptioPriceBase,
     ConfigurationPrice,
     )
@@ -33,15 +33,13 @@ from app.subscriptions.services import (
     update_price_base_service,
     update_categorie_abonnement,
     create_categorie_abonnement,
-    return_url,
-    update_suscription_access,
     init_configuration,
 )
 from app.permissions.checker import PermissionsChecker
 from app.permissions.enum_permissions import PermissionsEnum
 
 
-subscription = Router(tags=["Subscription-WG"], auth=PermissionsChecker())
+subscription = Router(tags=["Subscription"], auth=PermissionsChecker())
 
 # ------------------ Le prix de base --------------------#
 
@@ -189,8 +187,8 @@ def get_categories(request) -> list[SubscriptionCategorieOutShema]:
     user = request.user
     
     if user and user.user_type and user.user_type == User.ADMIN:
-        return SubscriptionCategorieWg.objects.all()
-    return SubscriptionCategorieWg.objects.filter(is_active=True)
+        return SubscriptionCategorie.objects.all()
+    return SubscriptionCategorie.objects.filter(is_active=True)
 
 
 @subscription.patch(
@@ -241,7 +239,7 @@ def delete_category(request, slug: str):
 # ------------------------- Subscription -------------------------------#
 
 @subscription.post(
-        "/configuration/{microtik_slug}",
+        "/configuration/{network_slug}",
         auth=PermissionsChecker(permissions=[PermissionsEnum.SUBSCRIPTION_CONFIGURATION], owner=True),
         response=SubscriptionResponse,
         tags=['Abonnements'],
@@ -249,21 +247,21 @@ def delete_category(request, slug: str):
             "la route pour payer les frais de configuration du routeur."
         )
 )
-async def configuration_routeur(request,microtik_slug, data:ConfigurationInSchema):
+async def configuration_routeur(request,network_slug, data:ConfigurationInSchema):
     return await init_configuration(
         data = data.model_dump(),
-        microtik=request.microtik
+        network=request.network
     )
 
 
 @subscription.post(
-    "/{microtik_slug}",
+    "/{network_slug}",
     response=SubscriptionResponse,
     auth=PermissionsChecker(permissions=[PermissionsEnum.SUBSCRIPTION_CREATE], owner=True),
     tags=["Abonnements"],
     summary="Souscrire à un abonnement",
     description=(
-        "Crée un nouvel abonnement pour un Microtik.\n\n"
+        "Crée un nouvel abonnement pour un Network.\n\n"
         "**Paramètres :**\n"
         "- `category_slug` : Slug de la catégorie choisie\n"
         "- `paymentMethod` : Méthode de paiement (Orange Money, etc.)\n"
@@ -272,29 +270,29 @@ async def configuration_routeur(request,microtik_slug, data:ConfigurationInSchem
         "- Proprietaire: Pour faire ses abonnements"
     )
 )
-async def subscribe_abonement(request, data: SubscriptionWgInSchema, microtik_slug: str) -> SubscriptionResponse:
+async def subscribe_abonement(request, data: SubscriptionWgInSchema, network_slug: str) -> SubscriptionResponse:
     """
-    Souscrit un abonnement pour un Microtik.
+    Souscrit un abonnement pour un network.
     
     Args:
         request: Requête HTTP
         data (SubscriptionWgInSchema): Données de l'abonnement
-        microtik_slug (str): Slug du Microtik
+        network_slug (str): Slug du network
     
     Returns:
         SubscriptionResponse: Détails de l'abonnement et du paiement
     """
     return await subscrition_abonnement_service(
         data=data.model_dump(),
-        microtik=request.microtik
+        network=request.network
     )
 
 
 #------------------- LES INFORMATIONS SUR LE PAIEMENT -----------------#
 @subscription.get(
-    "/{microtik_slug}",
+    "/{network_slug}",
     response=list[PaidSubscriptionListSchema],
-    auth=PermissionsChecker(permissions=[PermissionsEnum.SUBSCRIPTION_READ], hasWG=True),
+    auth=PermissionsChecker(permissions=[PermissionsEnum.SUBSCRIPTION_READ], has_subscription=True),
     tags=["Abonnements"],
     summary="Lister l'historique des paiements d'abonnements d'un Microtik",
     description=(
@@ -304,12 +302,12 @@ async def subscribe_abonement(request, data: SubscriptionWgInSchema, microtik_sl
         "- Propriétaire "
     )
 )
-def get_subscriptions(request, microtik_slug: str) -> list[PaidSubscriptionListSchema]:
+def get_subscriptions(request, network_slug: str) -> list[PaidSubscriptionListSchema]:
     """
     Retourne les abonnements d'un Microtik.
     
     Args:
-        microtik_slug (str): Slug du Microtik
+        network_slug (str): Slug du Microtik
     
     Returns:
         list[SubscriptionWgOutSchema]: Liste des paiements
@@ -351,63 +349,6 @@ async def get_subscription(request, slug: str) -> PaidSubscriptionDetailSchema:
 
 @subscription.post("/webhook/subscription", response=WebhookOutSchemas)
 def web_hook_subscription(data:WebhookSchema):
-    return return_url(data=data.model_dump())
+    return
 
 
-@subscription.patch(
-    '/update/access/subscription/{microtik_slug}',
-    response=SubscriptionWGBaseSchema,
-    auth=PermissionsChecker(permissions=[PermissionsEnum.SUBSCRIPTION_UPDATE]),
-    tags=['Routeurs'],
-    summary="mettre a jours les informations d'access du routeur"
-                    )
-def update_subscription(request,microtik_slug:str,data:SubscriptionWGupdateSchema):
-    data = data.model_dump()
-    return update_suscription_access(
-        microtik_slug=microtik_slug,
-        data = data
-        )
-
-
-# @subscription.patch(
-#     "/renew/{slug}",
-#     response=SubscriptionResponse,
-#     auth=PermissionsChecker(permissions=[Auth, IsOwnerMicrotik]),
-#     tags=["Abonnements"],
-#     summary="Renouveler un abonnement",
-#     description=(
-#         "Renouvelle un abonnement existant.\n\n"
-#         "**Effets :**\n"
-#         "- Prolonge la date d'expiration\n"
-#         "- Conserve la même catégorie\n"
-#         "- Génère un nouveau paiement\n\n"
-#         "**Règles :**\n"
-#         "- L'abonnement doit être actif ou expiré\n"
-#         "- Le renouvellement se fait pour la même durée que l'abonnement initial"
-#     )
-# )
-# async def renew_subscription(request, slug: str) -> SubscriptionResponse:
-#     """
-#     Renouvelle un abonnement.
-    
-#     Args:
-#         slug (str): Slug de l'abonnement à renouveler
-    
-#     Returns:
-#         SubscriptionResponse: Détails du renouvellement
-    
-#     Raises:
-#         HttpError: Si l'abonnement n'existe pas
-#     """
-#     try:
-#         subscription = await sync_to_async(SubscriptionWG.objects.get)(slug=slug)
-#     except SubscriptionWG.DoesNotExist:
-#         raise HttpError(
-#             status_code=HTTPStatus.NOT_FOUND,
-#             message="Abonnement non trouvé"
-#         )
-    
-#     # Logique de renouvellement
-#     # À implémenter selon tes besoins
-    
-#     return subscription

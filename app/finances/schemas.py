@@ -76,6 +76,6 @@ class WindrawBaseSchema(Schema):
 
 class WindrawOutSchema(WindrawBaseSchema):
     """Schéma de sortie pour un retrait"""
-    microtik_name: str 
+    network_name: str 
     user_username: str 
     updated_at: datetime 

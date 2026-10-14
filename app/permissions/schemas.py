@@ -19,6 +19,9 @@ class PermissionGroupsList(Schema):
     description: str | None
     is_active: bool
 
+    class Config:
+        from_attributes =True
+
 
 class PermissionGroupsRetrieve(Schema):
     slug: str
@@ -27,6 +30,9 @@ class PermissionGroupsRetrieve(Schema):
     is_active: bool
     users: List[UserResponse] = []
     permissions: List[PermissionListSchema] = []
+
+    class Config:
+        from_attributes =True
 
 
 class PermissionGroupCreateSchema(Schema):
