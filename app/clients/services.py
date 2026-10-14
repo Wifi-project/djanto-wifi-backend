@@ -69,7 +69,7 @@ class ClientService:
     #----------------------La gestion voucher-----------------------
     @staticmethod
     async def create_voucher_service(network:Network,profil_slug,voucher_number):
-        profil = network.profils.filter(slug=profil_slug).first()
+        profil = await network.profils.filter(slug=profil_slug).afirst()
         name = f"voucher_{profil.name}-{timezone.now()}"
         if not profil:
             raise HttpError(
@@ -89,7 +89,7 @@ class ClientService:
             max_devices= profil.shared_users,
         )
         if tickets.get('status'):
-            GroupClient.objects.create(
+            GroupClient.objects.acreate(
                 name = name,
                 network = network,
                 number_voucher = voucher_number
@@ -98,7 +98,7 @@ class ClientService:
 
         raise HttpError(
             status_code=504,
-            message=f"une erreur lors de la generation des coupons "
+            message=f"une erreur lors de la generation des coupons {tickets.get("data")} "
         )
 
             
@@ -113,10 +113,10 @@ class ClientService:
         if not res.get('status'):
             raise HttpError(
                 status_code=HTTPStatus.BAD_GATEWAY,
-                message=f"une erreur backend s'est produit {res.get('message')}"
+                message=f"une erreur backend s'est produit {res.get('data')}"
             )
-
-        return res.get('message')
+        print("-----------\n la response",res)
+        return res.get('data')
 
 
     @staticmethod
@@ -129,16 +129,16 @@ class ClientService:
         if not res.get('status'):
             raise HttpError(
                 status_code=HTTPStatus.BAD_GATEWAY,
-                message=f"une erreur backend s'est produit {res.get('message')}"
+                message=f"une erreur backend s'est produit {res.get('data')}"
             )
 
-        return res.get('message')
+        return res.get('data')
 
 
 
     @staticmethod
     async def delete_voucher_service(network: Network,voucher_id:int):
-        res = gdms_service.delete_voucher(
+        res = await gdms_service.delete_voucher(
             voucher_id=voucher_id,
             network_id=network.network_id
         )
@@ -146,7 +146,24 @@ class ClientService:
         if not res.get('status'):
             raise HttpError(
                 status_code=HTTPStatus.BAD_GATEWAY,
-                message=f"Une erreur lors de la suppression {res.get('message')}"
+                message=f"Une erreur lors de la suppression {res.get('data')}"
+            )
+
+        return {'status':'success', 'message':"la suppression effectuer avec success."}
+
+
+
+    @staticmethod
+    async def delete_voucher_group_service(network: Network,group_id:list):
+        res = await gdms_service.delete_voucher_group(
+            group_id=group_id,
+            network_id=network.network_id
+        )
+
+        if not res.get('status'):
+            raise HttpError(
+                status_code=HTTPStatus.BAD_GATEWAY,
+                message=f"Une erreur lors de la suppression {res.get('data')}"
             )
 
         return {'status':'success', 'message':"la suppression effectuer avec success."}
@@ -154,7 +171,7 @@ class ClientService:
 
     #---------------la gestion client--------------------------------
     @staticmethod
-    async def list_client_service(start_at:int,end_at:int,network: Network, page_num:int=1, page_size:int=10) -> dict:
+    async def list_client_service(network: Network,start_at:int|None = None,end_at:int|None = None, page_num:int=1, page_size:int=10) -> dict:
         """Afficher le liste des clients"""
         response = await gdms_service.list_clients(
             network_id=network.network_id,
@@ -167,10 +184,9 @@ class ClientService:
         if not response.get('status'):
             raise HttpError(
                 status_code=500,
-                message=f"Une erreur f{response.get('message')}"
+                message=f"Une erreur f{response.get('data')}"
             )
-
-        return response.get("message")
+        return response.get("data")
 
 
     # @staticmethod
@@ -198,7 +214,7 @@ class ClientService:
         if not response.get('status'):
             raise HttpError(
                 status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-                message='une erreur inatandu sest produit'
+                message=f'une erreur inatandu sest produit {response.get("data")}'
             )
         
         return {'status':'success','message':'Le client blocker avec success.'}
@@ -217,10 +233,10 @@ class ClientService:
         if not res.get("status"):
             raise HttpError(
                 status_code=HTTPStatus.BAD_GATEWAY,
-                message=f"Une erreur {res.get('message')}"
+                message=f"Une erreur {res.get('data')}"
             )
         
-        return res.get("message")
+        return res.get("data")
 
 
     # @staticmethod

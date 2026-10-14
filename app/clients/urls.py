@@ -45,7 +45,7 @@ def notifiurl(request,data:PaymentWebhook):
 @client_router.get(
         "{network_slug}/groups-voucher/",
         auth=PermissionsChecker(permissions=[PermissionsEnum.CLIENT_GROUP_READ],owner=True, has_subscription=True),
-        response=list[VoucherGroupListResponseSchema],
+        response=VoucherGroupListResponseSchema,
         description="afficher la list des groupes de voucher"
 )
 async def list_group_voucher(request,network_slug:str,page_num:int=1,page_size:int=10,search:str=""):
@@ -62,7 +62,7 @@ async def list_group_voucher(request,network_slug:str,page_num:int=1,page_size:i
 @client_router.post(
         "/{network_slug}/create-voucher/", 
         auth=PermissionsChecker(permissions=[PermissionsEnum.CLIENT_CREATE], owner=True, has_subscription=True),
-        response=list[ClientBlockedOutSchemas],
+        response=ClientBlockedOutSchemas,
         description="La route pour le creation des vouchers par le owner microtik"
         )
 async def create_voucher(request,data:VoucherIn, network_slug:str):
@@ -79,7 +79,7 @@ async def create_voucher(request,data:VoucherIn, network_slug:str):
         response=PaginatedResponseVoucherInGroupSchema,
         description="la liste des vouchers dans le group"
         )
-async def list_vouchers(request,group_id:str,search:str):
+async def list_vouchers(request,network_slug:str,group_id:int,search:str | None = None):
     network = request.network
 
     return await ClientService.list_voucher_in_group_service(
@@ -110,12 +110,12 @@ async def delete_voucher(request,network_slug,voucher_id):
         response=ClientBlockedOutSchemas,
         description="supprimer le group de voucher"
         )
-async def delete_voucher(request,network_slug,voucher_id):
+async def delete_voucher_group(request,network_slug,group_id:list):
     network = request.network
 
-    return await ClientService.delete_voucher_service(
+    return await ClientService.delete_voucher_group_service(
         network=network,
-        voucher_id=voucher_id
+        group_id=group_id
     )
 
 
@@ -128,7 +128,7 @@ async def delete_voucher(request,network_slug,voucher_id):
         response=ClientPaginatedResponseSchema,
         description="la liste des client "
         )
-async def list_clients(request,page_num:int,page_size:int,network_slug:str,start_at:int,end_at:int):
+async def list_clients(request,page_num:int,page_size:int,network_slug:str,start_at:int|None = None,end_at:int|None = None):
     network = request.network
 
     return await ClientService.list_client_service(
@@ -174,7 +174,7 @@ async def unblock_client(request,client_id:str,network_slug:str):
 @client_router.get(
         "{network_slug}/actif-client",
         auth=PermissionsChecker(permissions=[PermissionsEnum.CLIENT_READ], owner=True, has_subscription=True),
-        response=list[SessionPaginatedResponseSchema]
+        response=SessionPaginatedResponseSchema
         )
 async def actif_client(request,network_slug:str,page_num:int,page_size:int):
     return await ClientService.actif_list_client_service(

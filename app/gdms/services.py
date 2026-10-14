@@ -529,8 +529,8 @@ def delete_profil_service(network: Network, profil_slug: str) -> dict:
         
 
 
-def profil_liste_service(microtik_slug:str):
-    microtik = Network.objects.filter(slug=microtik_slug).first()
+def profil_liste_service(network_slug:str):
+    microtik = Network.objects.filter(slug=network_slug).first()
     
     profil = microtik.profils.all()
 

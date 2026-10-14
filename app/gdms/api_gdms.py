@@ -32,7 +32,7 @@ class GdmsService(BaseService):
             "ap_add": "/oapi/v1.0.0/ap/add",
             "ap_list": "/oapi/v1.0.0/ap/list",
             "device_reset": "/oapi/v1.0.0/ap/reset",
-            "device_reboot": "/oapi/v1.0.0/device/reboot",
+            "device_reboot": "/oapi/v1.0.0/ap/reboot",
             "device_info": "/oapi/v1.0.0/ap/info",
             "device_delete": "/oapi/v1.0.0/ap/delete",
             "ssid_create": "/oapi/v1.0.0/ssid/create",
@@ -44,11 +44,12 @@ class GdmsService(BaseService):
             "client_online": "/oapi/v1.0.0/portal/monitor/list",
             "client_kick": "/oapi/v1.0.0/portal/kick",
             "voucher_group_list": "/oapi/v1.0.0/voucher/list",
-            "voucher_in_group": "/v1.0.0/voucher/vouchers/list",
-            "voucher_renew": "v1.0.0/voucher/vouchers/renew",
+            "voucher_in_group": "/oapi/v1.0.0/voucher/vouchers/list",
+            "voucher_renew": "/oapi/v1.0.0/voucher/vouchers/renew",
             "voucher_create": "/oapi/v1.0.0/voucher/save",
-            "voucher_delete": "/oapi/v1.0.0/voucher/delete",
-            "voucher_status": "/v1.0.0/voucher/vouchers/states",
+            "voucher_delete": "/oapi/v1.0.0/voucher/vouchers/delete",
+            "delete_voucher_group": "/oapi/v1.0.0/voucher/delete",
+            "voucher_status": "/oapi/v1.0.0/voucher/vouchers/states",
         }
         return f"{self.BASE_URL}{GWN_ENDPOINTS.get(url)}"
 
@@ -502,19 +503,19 @@ class GdmsService(BaseService):
         return await self.send_request(url=url, payload=payload,action="voucher")
 
 
-    async def list_voucher_in_group(self, search:str,group_id:int,nework_id:int) -> dict[str,str]:
+    async def list_voucher_in_group(self, search:str,group_id:int,network_id:int, page_num:int=1,page_size:int=10) -> dict[str,str]:
         url = self.urls(url='voucher_in_group')
         payload = {
-                "search": "",
+                "search": search or "",
                 "order": "",
                 "type": "desc",
-                "pageNum": 1,
-                "pageSize": 10,
+                "pageNum": page_num,
+                "pageSize": page_size,
                 "filter": {
                     "state": ""
                 },
                 "groupId": group_id,
-                "networkId": nework_id
+                "networkId": network_id
             }
 
         return await self.send_request(url=url,payload=payload,action='voucher')
@@ -565,6 +566,16 @@ class GdmsService(BaseService):
         url = self.urls(url="voucher_delete")
         payload = {"id": voucher_id, "networkId": network_id}
         return await self.send_request(url=url, payload=payload,action="voucher")
+
+
+    async def delete_voucher_group(self, network_id: int, group_id: list) -> dict:
+        url = self.urls(url="delete_voucher_group")
+        payload = {
+            "groupIds": group_id, 
+            "networkId": network_id
+            }
+        return await self.send_request(url=url, payload=payload,action="voucher")
+
 
 
 gdms_service = GdmsService()

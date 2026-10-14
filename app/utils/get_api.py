@@ -42,7 +42,7 @@ async def post_data(url:str,payload:dict, headers: dict = None, is_data:bool=Fal
             return {"status": "failled", "message":"Timeout"}
 
         except httpx.HTTPStatusError as e:
-            return {"status": "failled", "message":f"Statut invalide: {e.response.status_code}"}
+            return {"status": "failled", "message":f"Statut invalide: {e.response.status_code} {e}"}
 
         except Exception as e:
             return {"status": "failled", "message":f"Une erreur inconnue est survenue {e}"}

@@ -51,18 +51,18 @@ class VoucherSchema(Schema):
     usedVoucherNum: int
     effectDurationMap: EffectDurationMapSchema
     createEmail: str
-    upRate: int
+    upRate: Optional[int] = None
     upRateUnit: int
     downRate: Optional[int] = None
     downRateUnit: int
     usageQuota: Optional[int] = None
     usageUnit: int
-    description: str
+    description: Optional[str] = None
     createTimeStr: str
     expirationTimeStr: str
     availableVoucherNum: int
     usageLimitType: int
-
+    
 class VoucherGroupListResponseSchema(Schema):
     result: List[VoucherSchema]
 
@@ -164,18 +164,18 @@ class SessionItemSchema(Schema):
     rssi: int
     authType: str
     policyName: str
-    loginTimeStr: str
-    portalTimeDisplay: str
-    portalInfo: str
+    loginTimeStr: Optional[str] = None
+    portalTimeDisplay: Optional[str] = None
+    portalInfo: Optional[str] = None
     portalStats: int
+
 
 class SessionPaginatedResponseSchema(Schema):
     result: List[SessionItemSchema]
     total: int
     totalPage: int
     currentPage: int
-
-
+    
 
 class ClientBlockedOutSchemas(Schema):
     status: str 
