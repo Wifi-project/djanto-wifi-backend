@@ -36,6 +36,7 @@ class GdmsService(BaseService):
             "device_info": "/oapi/v1.0.0/ap/info",
             "device_delete": "/oapi/v1.0.0/ap/delete",
             "ssid_create": "/oapi/v1.0.0/ssid/create",
+            "ssid_list": "/oapi/v1.0.0/ssid/list",
             "ssid_update": "/oapi/v1.0.0/ssid/update",
             "ssid_delete": "/oapi/v1.0.0/ssid/delete",
             "client_list": "/oapi/v1.0.0/client/list",
@@ -343,6 +344,20 @@ class GdmsService(BaseService):
         return response.get("id")
 
 
+    async def list_network_ssids(self, network_id: int, page_num: int = 1, page_size: int = 10) -> dict:
+        """Récupère la liste des SSIDs d'un réseau donné avec leurs états."""
+        url = self.urls(url="ssid_list") 
+        
+        payload = {
+            "networkId": network_id,
+            "pageNum": page_num,
+            "pageSize": page_size
+        }
+    
+        response_data = await self.send_request(url=url, payload=payload, action="ssid")
+        return response_data
+
+
     async def update_ssid(
         self,
         network_id: int,
@@ -372,20 +387,23 @@ class GdmsService(BaseService):
         ssid_id: int,
         current_ssid_name: str,
         block: bool = True,
+        ssid_remark: str = "",
     ) -> str:
         url = self.urls(url="ssid_update")
+        
         payload = {
             "id": ssid_id,
-            "ssidSsid": current_ssid_name,
-            "ssidWepKey": "",
-            "ssidWpaKey": "",
-            "bindMacs": [],
-            "ssidTimedClientPolicy": 0,
             "networkId": network_id,
+            "ssidSsid": current_ssid_name,
+            "ssidRemark": ssid_remark,
             "ssidEnable": 0 if block else 1,
+            "ssidWepKey": "",      
+            "ssidWpaKey": "",      
+            "bindMacs": [],        
+            "ssidTimedClientPolicy": 0, 
         }
         
-        return await self.send_request(url=url, payload=payload,action="ssid")
+        return await self.send_request(url=url, payload=payload, action="ssid")
 
 
     async def set_client_isolation(
@@ -418,7 +436,7 @@ class GdmsService(BaseService):
             page_size: int = 100,start_at:str|None=None,
             end_date:str | None = None ) -> dict:
 
-        yesterday = timezone.now() - timedelta(days=1)
+        yesterday = timezone.now() - timedelta(days=100)
         now = timezone.now()
         timestamp_ms = int(now.timestamp() * 1000)
         yesterday_ms = int(yesterday.timestamp() * 1000)
@@ -431,8 +449,8 @@ class GdmsService(BaseService):
             "type": "desc",
             "order": "ip",
             "search": "ap",
-            "endDate": start_at or yesterday_ms,
-            "startDate": end_date or timestamp_ms
+            "endDate":  yesterday_ms,
+            "startDate": timestamp_ms
         }
         return await self.send_request(url=url, payload=payload,action="client")
 
@@ -503,7 +521,7 @@ class GdmsService(BaseService):
         return await self.send_request(url=url, payload=payload,action="voucher")
 
 
-    async def list_voucher_in_group(self, search:str,group_id:int,network_id:int, page_num:int=1,page_size:int=10) -> dict[str,str]:
+    async def list_voucher_in_group(self, search:str,group_id:int,network_id:int, page_num:int=1,page_size:int=1000) -> dict[str,str]:
         url = self.urls(url='voucher_in_group')
         payload = {
                 "search": search or "",

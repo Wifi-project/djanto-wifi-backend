@@ -17,6 +17,12 @@ class Network(Base):
         null=True, 
         blank=True, 
         )
+    site_id = models.CharField(
+        max_length=100, 
+        null=True, 
+        blank=True, 
+        )
+    set_isloation = models.BooleanField(default=False)
     owners = models.ManyToManyField(
         User, 
         related_name="owners_network",
@@ -34,6 +40,7 @@ class Network(Base):
     subscription_expire_at = models.DateField(null=True, blank=True)
     subscription_at = models.DateField(null=True, blank=True)
     configuration_paid = models.BooleanField(default=False)
+    status = models.CharField(choices=Status,max_length=30, default=Status.ACTIVE)
 
     @property
     def subscription(self):
@@ -100,7 +107,6 @@ class Gdms(Base):
     password = models.CharField(max_length=50,null=True)    
     device_add = models.BooleanField(default=False)
     is_online = models.BooleanField(default=True)
-    set_isloation = models.BooleanField(default=False)
     status = models.CharField(choices=Status, default=Status.ACTIVE)
 
 

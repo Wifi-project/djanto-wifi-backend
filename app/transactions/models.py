@@ -46,8 +46,11 @@ class Transaction(Base):
     network = models.ForeignKey(
         Network, on_delete=models.CASCADE, 
         related_name='microtik_transactions', 
-        related_query_name='microtik_transaction'
+        related_query_name='microtik_transaction',
+        null=True
         )
+    network_name = models.CharField(max_length=250, null=True)
+    network_description = models.CharField(max_length=250, null=True,blank=True)
     profil = models.ForeignKey(
         Profil,
         on_delete=models.SET_NULL,
@@ -79,3 +82,24 @@ class Transaction(Base):
         return f"Paiement {self.slug} - {self.status}"
 
 
+
+class PaymentMethod(Base):
+    name = models.CharField(
+        max_length=100,
+        unique=True,
+        verbose_name="Nom",
+    )
+    code = models.CharField(
+        max_length=50,
+        unique=True,
+        verbose_name="Code",
+    )
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name        = "Moyen de transaction"
+        verbose_name_plural = "Moyens de transaction"
+        ordering            = ["name"]
+
+    def __str__(self):
+        return f"{self.name} ({self.code})"

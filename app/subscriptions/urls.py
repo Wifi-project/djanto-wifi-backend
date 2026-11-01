@@ -1,4 +1,3 @@
-# app/subscriptions/urls.py
 from ninja import Router
 from ninja.pagination import LimitOffsetPagination, paginate
 from ninja.errors import HttpError
@@ -238,20 +237,20 @@ def delete_category(request, slug: str):
 
 # ------------------------- Subscription -------------------------------#
 
-@subscription.post(
-        "/configuration/{network_slug}",
-        auth=PermissionsChecker(permissions=[PermissionsEnum.SUBSCRIPTION_CONFIGURATION], owner=True),
-        response=SubscriptionResponse,
-        tags=['Abonnements'],
-        description=(
-            "la route pour payer les frais de configuration du routeur."
-        )
-)
-async def configuration_routeur(request,network_slug, data:ConfigurationInSchema):
-    return await init_configuration(
-        data = data.model_dump(),
-        network=request.network
-    )
+# @subscription.post(
+#         "/configuration/{network_slug}",
+#         auth=PermissionsChecker(permissions=[PermissionsEnum.SUBSCRIPTION_CONFIGURATION], owner=True),
+#         response=SubscriptionResponse,
+#         tags=['Abonnements'],
+#         description=(
+#             "la route pour payer les frais de configuration du routeur."
+#         )
+# )
+# async def configuration_routeur(request,network_slug, data:ConfigurationInSchema):
+#     return await init_configuration(
+#         data = data.model_dump(),
+#         network=request.network
+#     )
 
 
 @subscription.post(

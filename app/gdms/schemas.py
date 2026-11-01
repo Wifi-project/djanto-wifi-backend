@@ -7,6 +7,7 @@ from enum import Enum
 from app.users.schemas import UserOwnerOutSchema
 from app.permissions.schemas import PermissionGroupsList
 from datetime import date
+from app.subscriptions.schemas import ConfigurationInSchema
 
 
 class ProfilDuratinEnum(str,Enum):
@@ -73,9 +74,13 @@ class ProfilInSchema(ProfilBase):
 
 #--------------Network------------------#
 
-class NetworkInSchemas(Schema):
+class NetworkBaseCreateSchemas(Schema):
     name: str
-    description:str
+    description: str
+    
+class NetworkInSchemas(Schema):
+    network: NetworkBaseCreateSchemas
+    configuration: ConfigurationInSchema
 
 
 from pydantic import ConfigDict
@@ -94,12 +99,16 @@ class NetworkRetrieveSchemas(Schema):
     name: str
     description: str | None = None
     network_id: int | str | None = None
+    site_id: str | None = None
+    set_isloation: bool
     commission_rate: Decimal
     wallet_balance: Decimal
     admin_blocked: bool
     subscription_expire_at: date | None = None
     subscription: bool
     days_remaining: int
+    configuration_paid:bool
+    status: str
     gdms_network: list['GdmsOutInNetwork'] = []
     profils: list['ProfilOutSchema'] = []
     network_owners: list['OwnerNetworkOutInNetworkSchemas'] = []
@@ -114,7 +123,7 @@ class CheckNetworkName(Schema):
 #----------------Owner network-----------------#
 
 class OwnerNetworkOutInNetworkSchemas(Schema):
-    user: UserOwnerOutSchema
+    user: UserOwnerOutSchema | None = None
     group_permissions: list[PermissionGroupsList] = []
 
     model_config = ConfigDict(from_attributes=True)
@@ -122,7 +131,7 @@ class OwnerNetworkOutInNetworkSchemas(Schema):
 #-----------------Gdms---------------------#
 class GdmsBaseSchema(Schema):
     slug: str
-    description: str
+    description: str 
     gdms_site_id: str 
     mac_address: str 
     serial_number: str 
@@ -134,7 +143,10 @@ class GdmsBaseSchema(Schema):
 
 
 class GdmsOutInNetwork(GdmsBaseSchema):
-    ...
+    description: str | None = None
+    serial_number: str | None = None
+    gdms_site_id: str | None = None
+    mac_address: str | None = None
 
 
 class GdmsOutSchemas(GdmsBaseSchema):
@@ -156,6 +168,71 @@ class GdmsRebootSchemas(Schema):
 class GdmsDeviceBlockSchemas(Schema):
     gdms_slug: str
 
+class SsiIsolationSchemas(Schema):
+    isolation: bool
+
 class ResponseStatus(Schema):
     status: str
     message: str
+
+
+#---------------- SSID -----------------------
+class SsidOutSchema(Schema):
+    """Un SSID (réseau WiFi) tel que retourné par l'API."""
+    id: int
+    ssidName: str
+    ssidRemark: str | None = None
+    wifiEnabled: int          # 0 ou 1
+    vlanId: str | None = None
+    onlineDevices: int
+    scheduleEnabled: int
+    portalEnabled: int
+    securityMode: int
+    macFilteringEnabled: int
+    clientIsolationEnabled: int
+
+
+class SsidListOutSchema(Schema):
+    """Réponse paginée de la liste des SSIDs."""
+    result: list[SsidOutSchema]
+    total: int
+    pages: int
+    pageSize: int
+    pageNum: int
+
+
+#------------- DEVICE ------------------------
+
+class ApOutSchema(Schema):
+    """Un point d'accès (AP) tel que retourné par l'API GDMS."""
+    status: int                          
+    apType: str
+    mac: str
+    name: str | None = ""
+    ip: str | None = None
+    upTime: int | None = None         
+    usage: int
+    upload: int
+    download: int
+    channel: int | None = None
+    channel5g: int | None = None
+    clients: int
+    lastFwVersion: str | None = None
+    versionFirmware: str | None = None
+    networkId: int
+    siteId: int
+    ipv6: str | None = None
+    longitude: str | None = None      
+    latitude: str | None = None       
+    remarks: str | None = None
+    additionalRemarks: str | None = None
+
+
+class ApListOutSchema(Schema):
+    """Réponse paginée de la liste des APs."""
+    result: list[ApOutSchema]
+    offline: int
+    total: int
+    totalPage: int
+    online: int
+    currentPage: int

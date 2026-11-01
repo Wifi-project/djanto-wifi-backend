@@ -17,6 +17,7 @@ from app.gdms.api_gdms import gdms_service
 #---------------------Network---------------------------------#
 
 async def check_network_name_service(name:str) -> dict[str,str]:
+    """Cette fonction cree le network et fait la configuration ssid automatiquement."""
     if await Network.objects.filter(name=name).aexists():
         return {"status": 'failled', "message":"Erreur ce nom de resau exist deja."}
     
@@ -57,9 +58,25 @@ async def create_network_service(data: dict, user) -> Network:
             message=f"Identifiant réseau absent: {response}",
         )
 
-    data.pop('id', None)
-    data.pop('network_id', None)
-    network = await Network.objects.acreate(**data, network_id=network_id)
+    ssid = await gdms_service.create_ssid(
+            network_id=network_id,
+            ssid_name=network_name
+        )
+
+    if not ssid.get('status'):
+        raise HttpError(
+            status_code=HTTPStatus.BAD_REQUEST,
+            message=f"erreur de la creation ssid {ssid.get('data')}"
+        )
+
+    ssid_data = ssid.get('data', {})
+    ssid_id = ssid_data.get('id')
+
+    network = await Network.objects.acreate(
+        **data, 
+        network_id=network_id, 
+        site_id=ssid_id  
+    )
 
     group = await PermissionGroup.objects.filter(
         slug=PermissionGroupEnum.PROPRIETAIRE_NETWORK.value
@@ -78,7 +95,7 @@ async def create_network_service(data: dict, user) -> Network:
 
 
 def list_network_service(user:User)-> Network:
-    if user.user_type == [User.OWNERSYSTEME,User.ADMIN]:
+    if user.user_type in [User.OWNERSYSTEME,User.ADMIN]:
         return Network.objects.all()
     network = Network.objects.filter(owners = user)
     return network
@@ -135,25 +152,26 @@ async def delete_network_service(network:Network) -> Network:
 
 #--------------------- Gdms ---------------------------#
 
-async def create_gdms_service(data:dict[str,str|int], user:User, network:Network) -> Gdms:    
+async def create_gdms_service(data: dict[str, str | int], user: User, network: Network) -> Gdms:    
     network_id = network.network_id
     ssid_name = network.name
-    mac = data.get("mac",'')
-    password = data.get("password","")
+    mac = data.get("mac", "")
+    password = data.get("password", "")
 
     if not mac or not password:
         raise HttpError(
             status_code=HTTPStatus.BAD_REQUEST,
-            message="le mac et le passwork son obligatoire"
+            message="Le MAC et le password sont obligatoires."
         )
 
-    if await Gdms.objects.filter(mac_address=mac, password=password).aexists():
+    if await Gdms.objects.filter(mac_address=mac).aexists():
         raise HttpError(
             status_code=HTTPStatus.BAD_REQUEST,
-            message="erreur cet entaine a deja ete ajouter."
+            message="Erreur : Cette antenne/borne a déjà été ajoutée."
         )
 
-    gdms = await Gdms.objects.filter(network=network,mac_address = mac).afirst()
+    gdms = await Gdms.objects.filter(network=network, mac_address=mac).afirst()
+    
     if not gdms:
         r_app_device = await gdms_service.device_add_ap(
             network_id=network_id,
@@ -161,37 +179,40 @@ async def create_gdms_service(data:dict[str,str|int], user:User, network:Network
             password=password,
             name=ssid_name
         )
-
-
-        print('--------response app_device',r_app_device)
     
-        status_r_app_device = r_app_device.get("status")
-        if not status_r_app_device:
+        if not r_app_device.get("status"):
             raise HttpError(
                 status_code=HTTPStatus.BAD_REQUEST,
-                message=f"une erreur lors de la creation de network : {r_app_device.get('data')}"
-                )
+                message=f"Une erreur est survenue lors de l'ajout de la borne AP : {r_app_device.get('data')}"
+            )
     
-        gdms = await Gdms.objects.acreate(**data, network=network,device_add=True)
-
-    ssid = await gdms_service.create_ssid(
-        network_id=network_id,
-        ssid_name=ssid_name
-    )
-
-    print('---------les donnees', ssid)
-
-    if not ssid.get('status'):
-        raise HttpError(
-            status_code=HTTPStatus.BAD_REQUEST,
-            message=f'erreur de la creation ssid {ssid.get('data')}'
+        gdms = await Gdms.objects.acreate(
+            **data, 
+            network=network,
+            gdms_site_id=network.site_id,  
+            device_add=True
         )
 
-    data = ssid.get('data')
-    gdms.gdms_site_id = data.get('id')
-    await gdms.asave(update_fields=['gdms_site_id'])
-
     return gdms
+
+
+async def list_device_service(network:Network,page_num:int=1,page_size:int=100):
+    network_id:int = network.network_id
+
+    response = await gdms_service.device_list_aps(
+        network_id=network_id,
+        page_num=page_num,
+        page_size=page_size
+    )
+
+    if not response.get('status'):
+        raise HttpError(
+            status_code=HTTPStatus.BAD_REQUEST,
+            message=f"Erreur lors de l'affichage de la liste des devices: {response.get('data')}"
+        )
+
+    return response.get("data")
+
 
 
 async def reboot_device_service(network:Network, data:dict[str,list[str]]) -> dict[str,str]:
@@ -228,12 +249,10 @@ async def delete_device_service(data:dict[str,list[str]]) -> dict[str,str]:
     return {'status': 'success', 'message': 'suppression effectuer avec success.'}
 
 
-async def ssid_update_service(network:Network, gdms_slug:str, new_name:str) -> Gdms:
+async def ssid_update_service(network:Network, new_name:str) -> Gdms:
     network_id = network.network_id
     name = network.name
-
-    gdms = await Gdms.objects.filter(slug=gdms_slug).afirst()
-    ssid_id = gdms.gdms_site_id
+    ssid_id = network.site_id
 
     response = await gdms_service.update_ssid(
         network_id=network_id,
@@ -248,15 +267,71 @@ async def ssid_update_service(network:Network, gdms_slug:str, new_name:str) -> G
             message=f"erreur lors de la mise a jours {response.get('data')}"
         )
     
-    return gdms
+    return network
 
 
-async def block_ssid_service(network:Network, gdms_slug:str) -> Gdms:
+async def ssid_list_service(network:Network,page_num:int,page_size:int):
+    if not network:
+        raise HttpError(
+            status_code=HTTPStatus.BAD_REQUEST,
+            message="Erreur veillez entrer un reseau valide."
+        )
+    network_id = network.network_id
+    response = await gdms_service.list_network_ssids(
+        network_id=network_id,
+        page_num=page_num,
+        page_size=page_size
+        )
+    
+    if not response.get('status'):
+        raise HttpError(
+            status_code=HTTPStatus.BAD_REQUEST,
+            message=f"erreur lors de la de la recuperation de la liste: {response.get('data')}"
+        )
+    return response.get("data")
+
+
+
+async def ssid_check_connexion_service(network: Network) -> dict[str, str]:
+    if not network:
+        raise HttpError(
+            status_code=HTTPStatus.BAD_REQUEST,
+            message="Erreur veillez entrer un reseau valide."
+        )
+    
+    network_id = network.network_id
+    response = await gdms_service.list_network_ssids(
+        network_id=network_id
+    )
+    
+    if not response.get('status'):
+        raise HttpError(
+            status_code=HTTPStatus.BAD_REQUEST,
+            message=f"Erreur lors de la connexion: {response.get('message', 'Erreur inconnue')}"
+        )
+    
+    data = response.get("data", {})
+    result_list = data.get("result", [])
+    if not result_list:
+        return {'status': 'failed', 'message': 'Aucun SSID trouvé pour ce réseau.'}
+    
+    first_ssid = result_list[0]
+    wifi_enabled = first_ssid.get("wifiEnabled")
+    ssid_name = first_ssid.get("ssidName", "Inconnu")
+
+    if wifi_enabled == 0:
+        return {'status': 'failed', 'message': f"Le SSID '{ssid_name}' est hors ligne."}
+    elif wifi_enabled == 1:
+        return {'status': 'success', 'message': f"Le SSID '{ssid_name}' est en ligne."}
+    
+    return {'status': 'failed', 'message': "État du SSID inconnu."}
+
+
+
+async def block_ssid_service(network:Network) -> Gdms:
     network_id = network.network_id
     name = network.name
-
-    gdms = await Gdms.objects.filter(slug=gdms_slug).afirst()
-    ssid_id = gdms.gdms_site_id
+    ssid_id = network.site_id
 
     response = await gdms_service.block_unblock_ssid(
         network_id=network_id,
@@ -270,18 +345,16 @@ async def block_ssid_service(network:Network, gdms_slug:str) -> Gdms:
             status_code=HTTPStatus.BAD_REQUEST,
             message=f"erreur lors du blocage ssid {response.get('data')}"
         )
-    gdms.status = Status.DISABLE
-    await gdms.asave(update_fields=['status'])
+    network.status = Status.DISABLE
+    await network.asave(update_fields=['status'])
 
     return {'status': 'success', 'message':'le blocage effectuer avec success.'}
 
 
-async def unblock_ssid_service(network:Network, gdms_slug:str) -> Gdms:
+async def unblock_ssid_service(network:Network) -> Gdms:
     network_id = network.network_id
     name = network.name
-
-    gdms = await Gdms.objects.filter(slug=gdms_slug).afirst()
-    ssid_id = gdms.gdms_site_id
+    ssid_id = network.site_id
 
     response = await gdms_service.block_unblock_ssid(
         network_id=network_id,
@@ -295,33 +368,31 @@ async def unblock_ssid_service(network:Network, gdms_slug:str) -> Gdms:
             status_code=HTTPStatus.BAD_REQUEST,
             message=f"erreur lors du deblocage ssid {response.get('data')}"
         )
-    gdms.status = Status.DISABLE
-    await gdms.asave(update_fields=['status'])
+    network.status = Status.DISABLE
+    await network.asave(update_fields=['status'])
 
     return {'status': 'success', 'message':'le deblocage effectuer avec success.'}
 
 
-async def isolation_ssid_service(network:Network, gdms_slug:str) -> Gdms:
+async def isolation_ssid_service(network:Network, enable:bool) -> Gdms:
     network_id = network.network_id
     name = network.name
-
-    gdms = await Gdms.objects.filter(slug=gdms_slug).afirst()
-    ssid_id = gdms.gdms_site_id
+    ssid_id = network.site_id
 
     response = await gdms_service.set_client_isolation(
         network_id=network_id,
         ssid_id=ssid_id,
-        current_ssid_name=name,
-        block=True
+        ssid_name=name,
+        enable=enable
     )
 
     if not response.get('status'):
         raise HttpError(
             status_code=HTTPStatus.BAD_REQUEST,
-            message=f"erreur lors du deblocage ssid {response.get('data')}"
+            message=f"erreur lors de l'isolation ssid {response.get('data')}"
         )
-    gdms.set_isloation = True
-    await gdms.asave(update_fields=['status'])
+    network.set_isloation = enable
+    await network.asave(update_fields=['set_isloation'])
 
     return {'status': 'success', 'message':'isolation effectuer avec success.'}
 
@@ -522,8 +593,8 @@ def delete_profil_service(network: Network, profil_slug: str) -> dict:
             message="Aucun profil correspondant à ce slug."
         )
     
-    profil.is_active = False
-    profil.save(update_fields=['is_active'])
+    profil.is_active = Status.DISABLE
+    profil.save(update_fields=['status'])
         
     return {"status": "success", "message": "Profil supprimé avec succès."}
         

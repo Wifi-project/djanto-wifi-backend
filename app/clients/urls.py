@@ -96,7 +96,7 @@ async def list_vouchers(request,network_slug:str,group_id:int,search:str | None 
         response=ClientBlockedOutSchemas,
         description="supprimer un voucher"
         )
-async def delete_voucher(request,network_slug,voucher_id):
+async def delete_voucher(request,network_slug,voucher_id:int):
     network = request.network
 
     return await ClientService.delete_voucher_service(
@@ -106,7 +106,7 @@ async def delete_voucher(request,network_slug,voucher_id):
 
 
 @client_router.delete(
-        '/{network_slug}/delete-group-voucher/{group_id}',
+        '/{network_slug}/delete-group-voucher/',
         auth=PermissionsChecker(permissions=[PermissionsEnum.CLIENT_GROUP_DELETE], owner=True, has_subscription=True),
         response=ClientBlockedOutSchemas,
         description="supprimer le group de voucher"
@@ -116,7 +116,7 @@ async def delete_voucher_group(request,network_slug,group_id:GroupIdForDelete):
 
     return await ClientService.delete_voucher_group_service(
         network=network,
-        group_id=group_id
+        group_id=group_id.model_dump()
     )
 
 

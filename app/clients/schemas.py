@@ -119,7 +119,7 @@ class ClientItemSchema(Schema):
     id: int
     networkId: int
     clientId: str
-    name: str
+    name: str | None = None
     ipv4: str
     ipv6: str
     channel: int
@@ -155,7 +155,7 @@ class ClientPaginatedResponseSchema(Schema):
 #online
 
 class SessionItemSchema(Schema):
-    name: str
+    name: str | None = None
     clientId: str
     apName: str
     apId: str

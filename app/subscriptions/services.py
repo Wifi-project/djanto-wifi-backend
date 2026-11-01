@@ -188,15 +188,20 @@ async def subscrition_abonnement_service(data: dict, network: Network):
 
 
 
-async def init_configuration(network:Network, data:dict):
+async def init_configuration(data:dict, network_data:dict,user):
     price = await  ConfigurationPrice.objects.afirst()
     paymentMethod = data.get('paymentMethod')
     phone = data.get('phone_number')
+
+    network_name = network_data.get("name")
+    network_description = network_data.get("descripiton")
+
     
     transaction = await Transaction.objects.acreate( 
         phone_number= phone,
         amount = price.price,
-        network = network,
+        network_name = network_name,
+        network_description = network_description,
         payment_method = paymentMethod,
         status=TransactionStatus.PENDING,
         type = TransactionType.CONFIGURATION
@@ -215,15 +220,18 @@ async def init_configuration(network:Network, data:dict):
         transaction.transaction_id = response.get("transactionId")
         await transaction.asave(update_fields=['transaction_id'])
 
-        network.subscription_at = timezone.now()
-        network.configuration_paid = True
-        network.subscription_expire_at = timezone.now() + timedelta(days=30)
-        await network.asave(update_fields=["subscription_expire_at","configuration_paid"])
+        from app.gdms.services import create_network_service
+        network = await create_network_service(data=network_data,user=user)
+        if network:
+            network.subscription_at = timezone.now()
+            network.configuration_paid = True
+            network.subscription_expire_at = timezone.now() + timedelta(days=30)
+            await network.asave(update_fields=["subscription_expire_at","configuration_paid"])
 
-        return {
-            'status':'success',
-            'message':'initiation du payement de configuration effectuer avec success.'
-        }
+            return {
+                'status':'success',
+                'message':'Veuillez confirmer le paiement pour finaliser la creation de votre reseau.'
+            }
 
     return {
         'status':'failled',

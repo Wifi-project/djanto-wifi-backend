@@ -15,11 +15,14 @@ from app.gdms.services import (
 
     create_gdms_service,
     reboot_device_service,
+    list_device_service,
     delete_device_service,
     ssid_update_service,
+    ssid_list_service,
     block_ssid_service,
     unblock_ssid_service,
     isolation_ssid_service,
+    ssid_check_connexion_service,
 
     create_owner_service,
     add_owner_service,
@@ -43,7 +46,10 @@ from app.gdms.schemas import (
     GdmsOutSchemas,
     GdmsInSchemas,
     GdmsRebootSchemas,
+    ApListOutSchema,
     GdmsDeviceBlockSchemas,
+    SsidListOutSchema,
+    SsiIsolationSchemas,
 
     ProfilOutSchema,
     ProfilUpdateSchema,
@@ -68,13 +74,22 @@ gdms = Router(tags=["GDMS"], auth=[PermissionsChecker()])
 @gdms.post(
         "/network/create/",
         tags=["Network"],
-        response=NetworkOutSchemas,
+        response=ResponseStatus,
         auth=PermissionsChecker(permissions=[PermissionsEnum.NETWORK_CREATE]),
         description="La creation d'un network",
         )
 async def create_network(request,data:NetworkInSchemas):
+    from app.subscriptions.services import init_configuration
     user = request.user 
-    return await create_network_service(data=data.model_dump(), user=user)
+    data_dict = data.model_dump()
+    configuration = data_dict.get('configuration',{})
+    network = data_dict.get('network', {})
+
+    return await init_configuration(
+        data=configuration, 
+        network_data=network,
+        user=user
+        )
 
 
 @gdms.patch(
@@ -144,7 +159,7 @@ async def delete_network(request,network_slug:str) -> dict[str,str]:
 #------------------------GESTION GDMS---------------------------------#
 
 @gdms.post(
-        "/gdms/device/create/{network_slug}/", 
+        "/device/create/{network_slug}/", 
         tags=["GDMS"],
         response=GdmsOutSchemas,
         auth=PermissionsChecker(permissions=[PermissionsEnum.GDMS_CREATE], owner=True, has_subscription=True),
@@ -160,8 +175,24 @@ async def create_gdms(request,network_slug:str, data:GdmsInSchemas) -> Gdms:
         )
 
 
+@gdms.get('/device/list/{network_slug}/',
+            tags=["GDMS"],
+            response={200:ApListOutSchema},
+            auth=PermissionsChecker(permissions=[PermissionsEnum.GDMS_READ], owner=True, has_subscription=True),
+            description="afficher la list des devices"
+            )
+async def list_device(request,network_slug:str,page_num:int=1,page_size:int=100):
+    network = request.network
+
+    return await list_device_service(
+        network=network,
+        page_size=page_size,
+        page_num=page_num
+    )
+
+
 @gdms.post(
-        "/gdms/device/reboot/{network_slug}/", 
+        "/device/reboot/{network_slug}/", 
         tags=["GDMS"],
         response=ResponseStatus,
         auth=PermissionsChecker(permissions=[PermissionsEnum.GDMS_UPDATE], owner=True, has_subscription=True),
@@ -173,7 +204,7 @@ async def reboot_gdms(request,network_slug:str, data:GdmsRebootSchemas) -> dict[
 
 
 @gdms.delete(
-        '/gdms/device/delete/{network_slug}/',
+        '/device/delete/{network_slug}/',
         tags=['GDMS'],
         response=ResponseStatus,
         auth=PermissionsChecker(permissions=[PermissionsEnum.GDMS_DELETE], owner=True, has_subscription=True),
@@ -185,41 +216,70 @@ async def delete_device(request,network_slug:str,data:GdmsRebootSchemas) -> dict
 
 
 @gdms.patch(
-        '/gdms/ssid/block/{network_slug}/',
+        '/ssid/block/{network_slug}/',
         tags=['GDMS'],
         response=ResponseStatus,
         auth=PermissionsChecker(permissions=[PermissionsEnum.SSID_BLOCK], owner=True, has_subscription=True),
         description="bloquer un device "
 )
-async def block_ssid(request,network_slug:str, data:GdmsDeviceBlockSchemas) -> dict[str,str]:
+async def block_ssid(request,network_slug:str) -> dict[str,str]:
     network = request.network
-    data_dict = data.model_dump()
 
     return await block_ssid_service(
         network=network,
-        gdms_slug=data_dict.get('gdms_slug')
         )
 
 
 @gdms.patch(
-        '/gdms/ssid/unblock/{network_slug}/',
+        '/ssid/unblock/{network_slug}/',
         tags=['GDMS'],
         response=ResponseStatus,
         auth=PermissionsChecker(permissions=[PermissionsEnum.SSID_UNLOCK], owner=True, has_subscription=True),
         description="debloquer un device"
 )
-async def unblock_ssid(request,network_slug:str, data:GdmsDeviceBlockSchemas) -> dict[str,str]:
+async def unblock_ssid(request,network_slug:str) -> dict[str,str]:
     network = request.network
-    data_dict = data.model_dump()
 
     return await unblock_ssid_service(
         network=network,
-        gdms_slug=data_dict.get('gdms_slug')
         )
 
 
+@gdms.get(
+    '/ssid/list/{network_slug}/',
+    tags=['GDMS'],
+    response=SsidListOutSchema,
+    auth=PermissionsChecker(permissions=[PermissionsEnum.SSID_READ], owner=True, has_subscription=True),
+    description="afficher la liste des ssid"
+)
+async def list_ssid(request, network_slug: str, page_num: int = 1, page_size: int = 100) -> dict:
+    network = request.network
+
+    return await ssid_list_service(
+        network=network,
+        page_size=page_size,  
+        page_num=page_num     
+    )
+
+
+@gdms.get(
+    '/ssid/check/connexion/{network_slug}/',
+    tags=['GDMS'],
+    response=ResponseStatus,
+    auth=PermissionsChecker(permissions=[PermissionsEnum.SSID_READ], owner=True, has_subscription=True),
+    description="tester la connexion"
+)
+async def check_ssid_connexion(request, network_slug: str) -> dict:
+    network = request.network
+
+    return await ssid_check_connexion_service(
+        network=network,
+    )
+
+
+
 @gdms.post(
-    '/gdms/ssid/isolation/{network_slug}/',
+    '/ssid/isolation/{network_slug}/',
     tags=['GDMS'],
     response=ResponseStatus,
     auth=PermissionsChecker(
@@ -229,13 +289,12 @@ async def unblock_ssid(request,network_slug:str, data:GdmsDeviceBlockSchemas) ->
     ),
     description="appliquer l'isolation"
 )
-async def ssid_isolation(request,network_slug:str, data: GdmsDeviceBlockSchemas) -> dict[str, str]:
+async def ssid_isolation(request,network_slug:str, data: SsiIsolationSchemas) -> dict[str, str]:
     network = request.network
-    gdms_slug = data.model_dump()
 
     return await isolation_ssid_service(
         network=network,
-        gdms_slug=gdms_slug.get('gdms_slug'),
+        enable=data.isolation
     )
 
 
@@ -289,13 +348,13 @@ def profile_update(request,data:ProfilUpdateSchema,slug_profil:str,network_slug:
         '/{network_slug}/delete-profil/{slug_profil}/',
         tags=["Routeurs Profile"],
         auth=PermissionsChecker(permissions=[PermissionsEnum.PROFIL_DELETE], owner=True, has_subscription=True),
-        response=ProfilOutSchema,
+        response=ResponseStatus,
         description="Supprimer un profil"
         )
 def delete_profil(request,slug_profil:str,network_slug:str) -> Profil:
 
     return delete_profil_service(
-        network_slug=request.network,
+        network=request.network,
         profil_slug=slug_profil,
     )
 
