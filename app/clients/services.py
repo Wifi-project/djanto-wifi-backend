@@ -120,18 +120,20 @@ class ClientService:
 
 
     @staticmethod
-    async def list_voucher_in_group_service(network: Network,group_id:int,search:str | None = None) -> dict:
+    async def list_voucher_in_group_service(network: Network,page_num:int,page_size:int,group_id:int,search:str | None = None) -> dict:
         res = await gdms_service.list_voucher_in_group(
             network_id=network.network_id,
             group_id=group_id,
-            search = search
+            search = search,
+            page_num=page_num,
+            page_size=page_size
         )
         if not res.get('status'):
             raise HttpError(
                 status_code=HTTPStatus.BAD_GATEWAY,
                 message=f"une erreur backend s'est produit {res.get('data')}"
             )
-
+        
         return res.get('data')
 
 

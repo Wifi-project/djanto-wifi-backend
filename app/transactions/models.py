@@ -45,8 +45,8 @@ class Transaction(Base):
         )
     network = models.ForeignKey(
         Network, on_delete=models.CASCADE, 
-        related_name='microtik_transactions', 
-        related_query_name='microtik_transaction',
+        related_name='network_transactions', 
+        related_query_name='network_transaction',
         null=True
         )
     network_name = models.CharField(max_length=250, null=True)

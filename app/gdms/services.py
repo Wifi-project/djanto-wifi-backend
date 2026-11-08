@@ -346,7 +346,8 @@ async def block_ssid_service(network:Network) -> Gdms:
             message=f"erreur lors du blocage ssid {response.get('data')}"
         )
     network.status = Status.DISABLE
-    await network.asave(update_fields=['status'])
+    network.admin_blocked = True
+    await network.asave(update_fields=['status','admin_blocked'])
 
     return {'status': 'success', 'message':'le blocage effectuer avec success.'}
 
@@ -368,8 +369,9 @@ async def unblock_ssid_service(network:Network) -> Gdms:
             status_code=HTTPStatus.BAD_REQUEST,
             message=f"erreur lors du deblocage ssid {response.get('data')}"
         )
-    network.status = Status.DISABLE
-    await network.asave(update_fields=['status'])
+    network.status = Status.ACTIVE
+    network.admin_blocked = False
+    await network.asave(update_fields=['status','admin_blocked'])
 
     return {'status': 'success', 'message':'le deblocage effectuer avec success.'}
 

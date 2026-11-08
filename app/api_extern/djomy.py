@@ -30,7 +30,7 @@ class HmacGen:
 class DjomyClient(BaseService):
 
     def __init__(self):
-        self.api_key = "djomy-client-1756569269779-996a" # os.getenv('DJOMY-API-KEY',"djomy-client-1756569269779-996a")
+        self.api_key = os.getenv('DJOMY-API-KEY',"djomy-client-1756569269779-996a")
         self.secret_key = os.getenv('DJOMY-SECRET-KEY',"s3cr3t-UX7dltPbKjR6JWVuWak84jGzfhe6bOSD")
         self.base_url = os.getenv("BASE_URL","https://sandbox-api.djomy.africa/v1")
         self.code = "djomy"
@@ -61,7 +61,7 @@ class DjomyClient(BaseService):
             headers=headers
         )
         print('la reponse postdata', response)
-        if response.get('status'): 
+        if response.get('status') == "success": 
             message = response.get('message',{})
             data = message.get('data')
             if "accessToken" in data:
@@ -100,8 +100,8 @@ class DjomyClient(BaseService):
 
         if not token:
             raise HttpError(
-                status_code=401,
-                message="erreur d'authentification pas de token provider"
+                status_code=500,
+                message="erreur un soucis avec le paiement veillez reesayer plustard."
             )
 
         headers = {

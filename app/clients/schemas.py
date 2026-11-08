@@ -116,7 +116,7 @@ class VoucherCreateResponse(Schema):
 #----------------------CLIENTS SCHEMAS---------------------
 
 class ClientItemSchema(Schema):
-    id: int
+    id: int | None = None
     networkId: int
     clientId: str
     name: str | None = None

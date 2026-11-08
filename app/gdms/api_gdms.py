@@ -448,9 +448,9 @@ class GdmsService(BaseService):
             "pageSize": page_size,
             "type": "desc",
             "order": "ip",
-            "search": "ap",
-            "endDate":  yesterday_ms,
-            "startDate": timestamp_ms
+            # "search": "ap",
+            # "endDate":  yesterday_ms,
+            # "startDate": timestamp_ms
         }
         return await self.send_request(url=url, payload=payload,action="client")
 

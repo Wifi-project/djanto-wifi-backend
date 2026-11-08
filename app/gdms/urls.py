@@ -120,7 +120,7 @@ async def check_network_name(request,data:CheckNetworkName) -> dict[str,str] :
     description="afficher la liste des network de user connecter et tous les networks pour un admin",
     auth=[PermissionsChecker(permissions=[PermissionsEnum.NETWORK_READ])]  
 )
-@paginate(LimitOffsetPagination, papage_size=10)
+@paginate(LimitOffsetPagination, papage_size=100)
 def list_network(request) -> list[Network]:
     user = request.user   
     return list_network_service(user = user)
@@ -134,7 +134,7 @@ def list_network(request) -> list[Network]:
         description="afficher detail d'un reseau network,")
 def retrieve_network(request, network_slug):
     user = request.user
-    if user.user_type == User.ADMIN:
+    if user.user_type in [User.ADMIN, User.OWNERSYSTEME]:
         network = Network.objects.filter(slug=network_slug).first()
     else:
         network = Network.objects.filter(slug=network_slug,owners=user).first()

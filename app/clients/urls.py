@@ -80,13 +80,15 @@ async def create_voucher(request,data:VoucherIn, network_slug:str):
         response=PaginatedResponseVoucherInGroupSchema,
         description="la liste des vouchers dans le group"
         )
-async def list_vouchers(request,network_slug:str,group_id:int,search:str | None = None):
+async def list_vouchers(request,network_slug:str,page_num:int,page_size:int,group_id:int,search:str | None = None):
     network = request.network
 
     return await ClientService.list_voucher_in_group_service(
         network=network,
         group_id=group_id,
-        search=search
+        search=search,
+        page_size=page_size,
+        page_num=page_num
     )
 
 

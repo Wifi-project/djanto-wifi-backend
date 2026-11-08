@@ -8,7 +8,7 @@ from app.users.schemas import UserOwnerOutSchema
 from app.permissions.schemas import PermissionGroupsList
 from datetime import date
 from app.subscriptions.schemas import ConfigurationInSchema
-
+from datetime import datetime, date
 
 class ProfilDuratinEnum(str,Enum):
     MINUTES = "m"
@@ -104,11 +104,13 @@ class NetworkRetrieveSchemas(Schema):
     commission_rate: Decimal
     wallet_balance: Decimal
     admin_blocked: bool
+    subscription_at: str | None = None
     subscription_expire_at: date | None = None
     subscription: bool
     days_remaining: int
     configuration_paid:bool
     status: str
+    created_at: datetime
     gdms_network: list['GdmsOutInNetwork'] = []
     profils: list['ProfilOutSchema'] = []
     network_owners: list['OwnerNetworkOutInNetworkSchemas'] = []
