@@ -14,10 +14,10 @@ class GdmsService(BaseService):
     def __init__(self):
         self.BASE_URL = os.getenv('GWN_DOMAIN','https://www.gwn.cloud')
         self.code = "GDMS"
-        self.secret_key = os.getenv("SECRET_KEY","lQeF3M2RzdWA4DZyTBMXGsruCaIOmGo4")
+        self.secret_key = os.getenv("SECRET_KEY","h8k17lQfMnelBtaoYcCaxQq9FLmz5Mh4")
         self.app_id = os.getenv('APP_ID',"668208")
-        self.admin_user_id = int(os.getenv("ADMIN_USER_ID",153246)) 
-        self.organization_id = int(os.getenv("ORGANIZATION_ID",163540)) 
+        self.admin_user_id = int(os.getenv("ADMIN_USER_ID",236409)) 
+        self.organization_id = int(os.getenv("ORGANIZATION_ID",154535)) 
 
     # ============================================================
     # URLS

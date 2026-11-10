@@ -55,6 +55,10 @@ class HasValidSubscription(BasePermission):
         if not network:
             raise HttpError(500, "Network non chargé")
 
+        from app.users.models import User
+        if getattr(request.user, "user_type", None) in [User.ADMIN, User.OWNERSYSTEME]:
+            return True
+        
         if not getattr(network, "subscription_expire_at", None):
             raise HttpError(
                 status_code=403,
