@@ -186,8 +186,10 @@ class GdmsService(BaseService):
         timestamp = str(int(time.time() * 1000))
 
         token = await self.get_token()
+
         if not token:
-            raise ValueError("Impossible d'obtenir un token GDMS")
+            return self.response(data=f'la requette token a echouer {token}',status=False)
+
 
         signature = await self.signature(token=token, timestamp=timestamp, payload=payload)
 
