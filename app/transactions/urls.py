@@ -62,7 +62,7 @@ def delete_payment_method(request, slug: str):
 
 
 @transactions.get(
-    "/transactions",
+    "/transactions/",
     response=TransactionListOut,
     tags=['Logs transaction'],
     description="Liste paginée de toutes les transactions de la plateforme.",
@@ -92,7 +92,7 @@ def list_transactions(
 
 
 @transactions.get(
-    "/transactions/{slug}",
+    "/transactions/{slug}/",
     tags=['Logs transaction'],
     response=TransactionOut,
     description="Détail d'une transaction.",

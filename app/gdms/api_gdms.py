@@ -15,7 +15,7 @@ class GdmsService(BaseService):
         self.BASE_URL = os.getenv('GWN_DOMAIN','https://www.gwn.cloud')
         self.code = "GDMS"
         self.secret_key = os.getenv("SECRET_KEY","h8k17lQfMnelBtaoYcCaxQq9FLmz5Mh4")
-        self.app_id = os.getenv('APP_ID',"668208")
+        self.app_id = os.getenv('APP_ID',668206)
         self.admin_user_id = int(os.getenv("ADMIN_USER_ID",236409)) 
         self.organization_id = int(os.getenv("ORGANIZATION_ID",154535)) 
 
@@ -184,6 +184,11 @@ class GdmsService(BaseService):
 
     async def send_request(self, url: str, payload: dict | None = None,action:str|None=None) -> dict:
         timestamp = str(int(time.time() * 1000))
+        print("(((((((((((((((((((())))))))))))))))))))")
+        print(self.app_id)
+        print(self.secret_key)
+        print(self.admin_user_id)
+        print("(((((((((((((((((((())))))))))))))))))))")
 
         token = await self.get_token()
 
