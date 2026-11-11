@@ -143,7 +143,7 @@ async def delete_network_service(network:Network) -> Network:
     if response.get('status'):
         raise HttpError(
             status_code=HTTPStatus.BAD_REQUEST,
-            message=f'erreur de suppression du reseau {response.get('data')}'
+            message=f"erreur de suppression du reseau {response.get('data')}"
         )
 
     return {"status": 'success', 'message': 'suppression effectuer avec susccess.'}
@@ -227,7 +227,7 @@ async def reboot_device_service(network:Network, data:dict[str,list[str]]) -> di
     if not response.get('status'):
         raise HttpError(
             status_code=HTTPStatus.BAD_REQUEST,
-            message=f'erreur de redemarrage {response.get('data')}'
+            message=f"erreur de redemarrage {response.get('data')}"
         )
 
     return {'status':'success', 'message': 'redemarrer avec success.'}
@@ -243,7 +243,7 @@ async def delete_device_service(data:dict[str,list[str]]) -> dict[str,str]:
     if not response.get('status'):
         raise HttpError(
             status_code=HTTPStatus.BAD_REQUEST,
-            message=f'erreur de suppresssion {response.get('data')}'
+            message=f"erreur de suppresssion {response.get('data')}"
         )
 
     return {'status': 'success', 'message': 'suppression effectuer avec success.'}
