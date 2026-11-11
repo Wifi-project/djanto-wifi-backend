@@ -117,7 +117,7 @@ async def update_network_service(network:Network, data:dict[str,str]) -> Network
     if not response.get('status'):
         raise HttpError(
             status_code=HTTPStatus.BAD_REQUEST,
-            message=f'erreur lors de la modification de network {response.get('data')}'
+            message=f"erreur lors de la modification de network {response.get('data')}"
         )
 
     db_network = await Network.objects.filter(slug=network.slug).afirst()
