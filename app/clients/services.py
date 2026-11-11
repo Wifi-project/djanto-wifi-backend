@@ -17,42 +17,43 @@ from app.gdms.models import Profil
 
 
 async def deposit(microtik_slug: str, data: dict):
-    from app.microtiks.models import Microtik
+    ...
+    # from app.microtiks.models import Microtik
     
-    microtik = await Microtik.objects.prefetch_related("profils").filter(slug=microtik_slug).afirst()
-    if not microtik:
-        raise HttpError(
-            status_code=HTTPStatus.BAD_REQUEST,
-            message="aucun microtik existant avec ce slug."
-        )
+    # microtik = await Microtik.objects.prefetch_related("profils").filter(slug=microtik_slug).afirst()
+    # if not microtik:
+    #     raise HttpError(
+    #         status_code=HTTPStatus.BAD_REQUEST,
+    #         message="aucun microtik existant avec ce slug."
+    #     )
     
-    profil_slug = data.pop("profil_slug", "") 
-    profil = await microtik.profils.filter(slug=profil_slug).afirst()
-    if not profil:
-        raise HttpError(
-            status_code=HTTPStatus.BAD_REQUEST,
-            message="Aucun slug correspond a ce profil."
-        )
+    # profil_slug = data.pop("profil_slug", "") 
+    # profil = await microtik.profils.filter(slug=profil_slug).afirst()
+    # if not profil:
+    #     raise HttpError(
+    #         status_code=HTTPStatus.BAD_REQUEST,
+    #         message="Aucun slug correspond a ce profil."
+    #     )
     
-    adapter = AdapterPayement(code="djomy")
+    # adapter = AdapterPayement(code="djomy")
     
-    reference = await InfoDeposit.objects.acreate(
-        **data, 
-        microtik=microtik,
-        profil_name=profil.name,
-        limit_uptime=profil.rate_limit,
-        amount=profil.price
-    )
+    # reference = await InfoDeposit.objects.acreate(
+    #     **data, 
+    #     microtik=microtik,
+    #     profil_name=profil.name,
+    #     limit_uptime=profil.rate_limit,
+    #     amount=profil.price
+    # )
     
-    response = await adapter.payeIn(
-        amount=profil.price,
-        method=data.get("paymentMethod"),
-        number=data.get("phone_number"),
-        reference=reference.slug,
-        description = " Achat de ticket"
-    )
+    # response = await adapter.payeIn(
+    #     amount=profil.price,
+    #     method=data.get("paymentMethod"),
+    #     number=data.get("phone_number"),
+    #     reference=reference.slug,
+    #     description = " Achat de ticket"
+    # )
     
-    return response
+    # return response
 
 
 
@@ -62,7 +63,8 @@ def notif_url(data: dict) -> dict:
     Gère la validation du paiement, la création du ticket sur le MikroTik
     et la mise à jour de la base de données.
     """
-    return process_payment_webhook_task.delay(data=data)         
+    ...
+    # return process_payment_webhook_task.delay(data=data)         
 
 
 class ClientService:
@@ -98,7 +100,7 @@ class ClientService:
 
         raise HttpError(
             status_code=504,
-            message=f"une erreur lors de la generation des coupons {tickets.get("data")} "
+            message=f"une erreur lors de la generation des coupons {tickets.get('data')} "
         )
 
             
@@ -248,11 +250,6 @@ class ClientService:
 
     #     )
 
-
-    @staticmethod
-    def reset_uptime_service(microtik: Microtik, user_slug: str, subscription: SubscriptionWG) -> dict:
-        """Réinitialise les compteurs de consommation (temps et octets) d'un utilisateur sur le MikroTik."""
-        ...
 
 
 
