@@ -3,7 +3,7 @@ import os
 
 def send_mail_creation(username: str, email: str, pwd: str, activation_token: str):
     # Construction du lien d'activation complet (ex: https://tondomaine.com/api/profile/users/activate/?token=...)
-    activation_link = f"{os.getenv("DJANTO_DOMAINE")}/active/{activation_token}"
+    activation_link = f"{os.getenv('DJANTO_DOMAINE')}/active/{activation_token}"
 
     sender_email(
         subject="Création de votre compte - Bienvenue sur Djanto wifi",
@@ -43,7 +43,7 @@ def send_mail_password_update(username: str, email: str, new_pwd: str):
 
 def send_password_reset_mail(username: str, email: str, reset_token: str):
     # Lien pointant vers ton front ou ton API de réinitialisation (ex: /reset-password?token=...)
-    reset_link = f"{os.getenv("DJANTO_DOMAINE")}/password/reset/{reset_token}/"
+    reset_link = f"{os.getenv('DJANTO_DOMAINE')}/password/reset/{reset_token}/"
 
     sender_email(
         subject="Réinitialisation de votre mot de passe - Djanto wifi",
