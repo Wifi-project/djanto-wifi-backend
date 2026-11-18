@@ -2,7 +2,6 @@ from django.db import models
 from app.commone.models import Base
 from app.gdms.models import Network
 from app.transactions.models import Transaction
-
 class Status(models.TextChoices):
     DISABLE = "disable", "Desactiver"
     ACTIVE = "active", "Activer le compte"
@@ -37,6 +36,8 @@ class Client(Base):
         )
     shared_users = models.IntegerField(default=1)
     generate = models.CharField(max_length=20, choices=generate_choice, default=SYSTEME)
+    sms_send= models.BooleanField(default=False)
+    buy = models.BooleanField(default=False)
 
     def __str__(self):
         return self.code_username
@@ -51,5 +52,6 @@ class GroupClient(Base):
         on_delete=models.CASCADE, 
         related_name='groups_vouchers', 
         )
+
 
 

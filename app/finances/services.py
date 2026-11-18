@@ -7,27 +7,9 @@ from app.finances.utils import calcul_deduction
 from app.api_extern.adapterPayement import AdapterPayement
 
 
-def info_deposit_list(microtik:str):
-    return InfoDeposit.objects.filter(microtik=microtik)
 
 
-def info_deposit_retrive(microtik:Microtik,deposit_slug:str):
-    info_depot = InfoDeposit.objects.filter(
-        slug = deposit_slug,
-        microtik=microtik,
-        ).first()
-
-    if not info_depot:
-        raise HttpError(
-            status_code=404,
-            message="Aucun client avec ce slug trouver."
-        )
-    return info_depot
-
-
-
-
-def windraw_service(network:Microtik,data:dict, user:User):
+def windraw_service(network:Network,data:dict, user:User):
     amount = data.get('amount',0)
     # phone_number = data.get("phone_number","")
     password = data.get("password","")
@@ -88,7 +70,7 @@ def windraw_service(network:Microtik,data:dict, user:User):
 
 
 def historique_windraw_service(
-        microtik:Microtik,
+        network:Network,
         status:str | None = None,
         reference: str | None = None
         ):

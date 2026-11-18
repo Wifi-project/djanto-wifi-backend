@@ -1,5 +1,6 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
+import secrets
 from ninja import Router
 from ninja_simple_jwt.auth.ninja_auth import HttpJwtAuth
 from ninja.pagination import paginate, LimitOffsetPagination 
@@ -13,12 +14,21 @@ from app.users.schemas import (
     UserPasswordUpdate, 
     UserPasswordUpdateMe,
     UserRetrieveScheama,
-    CurrentUserSchema
+    CurrentUserSchema,
+    ActivationSchema,
+    ForgotPassWord,
+    ResponseMessage,
+    NewPassWord,
     )
+
 from app.users.services import (
     user_creation, update_user_service,
-    reset_password,retrive_user_service
+    reset_password,retrive_user_service,
+    user_activation_service,
+    set_new_password,
+    forgot_password_service,
     )
+
 from django.contrib.auth.hashers import check_password
 from app.utils.password_check import check_security_password
 
@@ -86,10 +96,40 @@ def user_retrieve(request, slug:str)-> UserRetrieveScheama:
 
 @user_router.post(
         '/profile/users/', 
-        auth=PermissionsChecker(permissions=[PermissionsEnum.USER_CREATE]),
+        # auth=PermissionsChecker(permissions=[PermissionsEnum.USER_CREATE]),
         response=UserOutSchema)
 def create_user(request,user:UserInSchema) -> UserOutSchema:
     return user_creation(data=user.model_dump())
+
+
+@user_router.post(
+        '/profile/activate/', 
+        response=ResponseMessage
+        )
+def activate_user_account(request, payload: ActivationSchema):
+    return user_activation_service(token=payload.token)
+
+
+@user_router.patch(
+        'profile/forgot/password/',
+        response=ResponseMessage,
+        description="reinitialiser un mot de passe oublier"
+        )
+def forgot_password(request,data:ForgotPassWord) -> ResponseMessage:
+    return forgot_password_service(data.email)
+
+
+@user_router.patch(
+        'profile/reset/password/{token}/',
+        response=ResponseMessage,
+        description="Saisir le nouveau mot de pass"
+        )
+def new_password(request,token:str,data:NewPassWord) -> ResponseMessage:
+    return set_new_password(
+        token=token, 
+        new_password1=data.password_1,
+        new_password2=data.password_2
+        )
 
 
 @user_router.patch(
@@ -107,7 +147,8 @@ def update_user(request,slug,data:UserUpdate)-> UserOutSchema:
 
 @user_router.post('profile/users/reset_password/',auth=PermissionsChecker())
 def user_reset_password(request,data:UserPasswordUpdate) -> dict[int,str]:
-    password = data.new_password
+    password = secrets.token_urlsafe(9)
+    
     try:
         user = User.objects.get(email=data.email)
     except User.DoesNotExist:

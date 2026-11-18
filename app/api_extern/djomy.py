@@ -60,7 +60,7 @@ class DjomyClient(BaseService):
             payload={},
             headers=headers
         )
-        print('la reponse postdata', response)
+
         if response.get('status') == "success": 
             message = response.get('message',{})
             data = message.get('data')
@@ -84,6 +84,7 @@ class DjomyClient(BaseService):
             expire_time_init=3000
         )
         return token
+
 
     async def signature(self):
         hmac_signature = await HmacGen.hmac_generate(
@@ -111,6 +112,7 @@ class DjomyClient(BaseService):
         }
 
         response = await post_data(url=url,payload=payload,headers=headers)
+
         if response.get('status'):
             messsage = response.get('message')
             data = messsage.get('data')
@@ -172,5 +174,11 @@ class DjomyClient(BaseService):
         return self.send_request(url=url,payload=payload)
 
 
-    async def webhook(self):
-        ...
+    async def webhook_signature_check(self,received_signature:str,):
+        return await HmacGen.hmac_compare(
+            self.secret_key,
+            self.api_key,
+            signature=received_signature
+        )
+
+

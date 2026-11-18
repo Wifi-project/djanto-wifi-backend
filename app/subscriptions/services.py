@@ -1,6 +1,7 @@
 from __future__ import annotations
 from ninja.errors import HttpError
 from http import HTTPStatus
+from django.db.models import Q
 from typing import TYPE_CHECKING
 from app.api_extern.adapterPayement import AdapterPayement
 from app.subscriptions.models import (
@@ -8,7 +9,7 @@ from app.subscriptions.models import (
     SubscriptioPriceBase,
 
     )
-from asgiref.sync import sync_to_async
+from asgiref.sync import sync_to_async, async_to_sync
 from decimal import Decimal
 # from app.subscriptions.tasks import subscription_webhook_task
 from app.transactions.models import Transaction,TransactionStatus,TransactionType
@@ -190,8 +191,20 @@ async def subscrition_abonnement_service(data: dict, network: Network):
 
 async def init_configuration(data:dict, network_data:dict,user):
     price = await  ConfigurationPrice.objects.afirst()
+    if not price:
+        raise HttpError(
+            status_code=HTTPStatus.BAD_REQUEST,
+            message="Aucun prix de configuration attribuer."
+        )
+    
     paymentMethod = data.get('paymentMethod')
     phone = data.get('phone_number')
+
+    if not paymentMethod and not phone:
+        raise HttpError(
+            status_code=HTTPStatus.BAD_REQUEST,
+            message="le moyen de paiement choisie nexiste pas."
+        )
 
     network_name = network_data.get("name")
     network_description = network_data.get("descripiton")
@@ -204,7 +217,8 @@ async def init_configuration(data:dict, network_data:dict,user):
         network_description = network_description,
         payment_method = paymentMethod,
         status=TransactionStatus.PENDING,
-        type = TransactionType.CONFIGURATION
+        type = TransactionType.CONFIGURATION,
+        user = user
     ) 
         
     adapter = AdapterPayement(code="djomy") 
@@ -220,18 +234,18 @@ async def init_configuration(data:dict, network_data:dict,user):
         transaction.transaction_id = response.get("transactionId")
         await transaction.asave(update_fields=['transaction_id'])
 
-        from app.gdms.services import create_network_service
-        network = await create_network_service(data=network_data,user=user)
-        if network:
-            network.subscription_at = timezone.now()
-            network.configuration_paid = True
-            network.subscription_expire_at = timezone.now() + timedelta(days=30)
-            await network.asave(update_fields=["subscription_expire_at","configuration_paid"])
+        # from app.gdms.services import create_network_service
+        # network = await create_network_service(data=network_data,user=user)
+        # if network:
+        #     network.subscription_at = timezone.now()
+        #     network.configuration_paid = True
+        #     network.subscription_expire_at = timezone.now() + timedelta(days=30)
+        #     await network.asave(update_fields=["subscription_expire_at","configuration_paid"])
 
-            return {
-                'status':'success',
-                'message':'Veuillez confirmer le paiement pour finaliser la creation de votre reseau.'
-            }
+        return {
+            'status':'success',
+            'message':'Veuillez confirmer le paiement pour finaliser la creation de votre reseau.'
+        }
 
     return {
         'status':'failled',
@@ -239,6 +253,42 @@ async def init_configuration(data:dict, network_data:dict,user):
     }
 
 
-# def return_url(data: dict):
-#     """Callback après paiement"""
-#     subscription_webhook_task.delay(data=data)
+def return_url_config_service(transaction:Transaction):
+    from app.gdms.services import create_network_service
+
+    data = {
+        'name': transaction.network_name,
+        'description': transaction.network_description
+    }
+
+    network =  async_to_sync(create_network_service)(data=data,user=transaction.user)
+
+    if network:
+        network.subscription_at = timezone.now()
+        network.configuration_paid = True
+        network.subscription_expire_at = timezone.now() + timedelta(days=30)
+        network.asave(update_fields=["subscription_expire_at","configuration_paid"])
+
+        return {
+            'status':'success',
+            'message':'Le reseau cree avec success'
+        }
+    
+    return {
+        'status':'failled',
+        'message':'la creation du network a echoué'
+    }
+
+
+
+def return_url_subscription_service(network:Network, transaction:Transaction):
+    """Callback après paiement"""
+
+    network.subscription_at = timezone.now()
+    network.subscription_expire_at = timezone.now() + timedelta(days=transaction.category.days)
+    network.save(update_fields=["subscription_expire_at"])
+
+    return {
+        'status':'success',
+        'message':'abonnement effectuer success.'
+    }

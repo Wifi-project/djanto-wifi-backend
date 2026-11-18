@@ -30,6 +30,13 @@ async def post_data(url:str,payload:dict, headers: dict = None, is_data:bool=Fal
                     timeout=10.0
                 ) 
 
+            print("--- DEBUG NIMBA SMS ---")
+            print(f"URL ciblée : {url}")
+            print(f"Header Authorization complet : {headers}")
+            print(f"Payload envoyé : {payload}")
+            print("-----------------------")
+
+            
             response.raise_for_status()
             message = response.json()
 

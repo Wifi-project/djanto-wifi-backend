@@ -14,10 +14,10 @@ class GdmsService(BaseService):
     def __init__(self):
         self.BASE_URL = os.getenv('GWN_DOMAIN','https://www.gwn.cloud')
         self.code = "GDMS"
-        self.secret_key = os.getenv("SECRET_KEY","h8k17lQfMnelBtaoYcCaxQq9FLmz5Mh4")
-        self.app_id = os.getenv('APP_ID',668206)
-        self.admin_user_id = int(os.getenv("ADMIN_USER_ID",236409)) 
-        self.organization_id = int(os.getenv("ORGANIZATION_ID",154535)) 
+        self.secret_key = os.getenv("SECRET_KEY","lQeF3M2RzdWA4DZyTBMXGsruCaIOmGo4")
+        self.app_id = os.getenv('APP_ID',668208)
+        self.admin_user_id = int(os.getenv("ADMIN_USER_ID",153246)) 
+        self.organization_id = int(os.getenv("ORGANIZATION_ID",163540)) 
 
     # ============================================================
     # URLS
@@ -184,11 +184,6 @@ class GdmsService(BaseService):
 
     async def send_request(self, url: str, payload: dict | None = None,action:str|None=None) -> dict:
         timestamp = str(int(time.time() * 1000))
-        print("(((((((((((((((((((())))))))))))))))))))")
-        print(self.app_id)
-        print(self.secret_key)
-        print(self.admin_user_id)
-        print("(((((((((((((((((((())))))))))))))))))))")
 
         token = await self.get_token()
 
@@ -348,7 +343,7 @@ class GdmsService(BaseService):
         }
 
         response = await self.send_request(url=url, payload=payload,action="ssid")
-        return response.get("id")
+        return response
 
 
     async def list_network_ssids(self, network_id: int, page_num: int = 1, page_size: int = 10) -> dict:

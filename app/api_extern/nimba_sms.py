@@ -1,36 +1,54 @@
 import os
+import base64
 from app.utils.get_api import post_data
+from app.commone.email import sender_email
+from config.settings import ADMIN_EMAIL
 
 class NimbaSms:
 
     def __init__(self):
-        self.api_key = os.getenv("NIMBA-API-KEY")
+        
         self.code = "nimbasms"
-        self.base_url = os.getenv("BASE_URL","https://api.nimbasms.com/v1")
-        self.sendername = "djanto"
+        self.base_url = os.getenv("BASE_URL_NIMBA","https://api.nimbasms.com/v1/")
+        self.sendername = os.getenv("SENDER_NAME","Djantowifi")
+        self.authorization = os.getenv("AUTHORIZATION_NIMBA","Basic NzExYjE4MjllYTQxYTFhYWU1NzM0YWE5ZjM0MmIxOWI6VVhITXFka1ZwT3BZVjhSSm13emVkeG52MnB3UmpaX1o1dWVmNHhyUC00WHdjaFBEd0M1RVlubV9ZQUpKWEtLUTBfZTVpVVhDeXJocXRHblMySTJLemlXQjdqVlBuX1ZFdzVjLUg1bl9VSUk=") 
 
-    def urls(self):
+    async def urls(self, value):
         url_data = {
-            'send-sms': f'{self.base_url}/messages'
+            'send-sms': f'{self.base_url}messages'
         }
-        return url_data.get('send-sms')
+        return url_data.get(value)
     
-    
-    async def send(self,number:str,messsage:str):
+    async def send(self, number: str, message: str):
+        url = await self.urls(value='send-sms')
 
         payload = {
             "to": [number],
             "sender_name": self.sendername,
-            "message": messsage
+            "message": message
+        }
+
+        headers = {
+            "Authorization": f"{self.authorization}",
+            "content-type": "application/json"
         }
 
         response = await post_data(
-            url=self.urls,
+            url= url,
             payload=payload,
-            token=self.api_key,
-            sms=True
+            headers=headers
         )
+        if response.get('status'):
+            msg = response.get("message")
+            if msg and msg.get("messageid"):
+                return {"status": "success", "message": "sms envoyé avec succès."}
 
-        return {"status":"success", "message":"sms envoyer avec success."}
+        sender_email(
+            subject="Erreur SMS",
+            message=f"une erreur lors de l'envoie de sms {response}",
+            recipient_list=[ADMIN_EMAIL]
+        )
+        return {"status": "failled", "message": "erreur lors de l'envoie du sms."}
 
 
+send_sms = NimbaSms()

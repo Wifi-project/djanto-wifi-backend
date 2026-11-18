@@ -62,7 +62,6 @@ async def create_network_service(data: dict, user) -> Network:
             network_id=network_id,
             ssid_name=network_name
         )
-
     if not ssid.get('status'):
         raise HttpError(
             status_code=HTTPStatus.BAD_REQUEST,
@@ -605,7 +604,7 @@ def delete_profil_service(network: Network, profil_slug: str) -> dict:
 def profil_liste_service(network_slug:str):
     microtik = Network.objects.filter(slug=network_slug).first()
     
-    profil = microtik.profils.all()
+    profil = microtik.profils.filter(status=Status.ACTIVE)
 
     return profil
 

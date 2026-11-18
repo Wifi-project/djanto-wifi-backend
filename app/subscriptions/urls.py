@@ -271,7 +271,7 @@ def delete_category(request, slug: str):
 )
 async def subscribe_abonement(request, data: SubscriptionWgInSchema, network_slug: str) -> SubscriptionResponse:
     """
-    Souscrit un abonnement pour un network.
+    Souscrit un abonnement pour un reseau.
     
     Args:
         request: Requête HTTP
@@ -287,67 +287,10 @@ async def subscribe_abonement(request, data: SubscriptionWgInSchema, network_slu
     )
 
 
-#------------------- LES INFORMATIONS SUR LE PAIEMENT -----------------#
-@subscription.get(
-    "/{network_slug}",
-    response=list[PaidSubscriptionListSchema],
-    auth=PermissionsChecker(permissions=[PermissionsEnum.SUBSCRIPTION_READ], has_subscription=True),
-    tags=["Abonnements"],
-    summary="Lister l'historique des paiements d'abonnements d'un Microtik",
-    description=(
-        "Récupère la liste des paiements/abonnements associés à un Microtik.\n\n"
-        "**Permissions :**\n"
-        "- Admin \n"
-        "- Propriétaire "
-    )
-)
-def get_subscriptions(request, network_slug: str) -> list[PaidSubscriptionListSchema]:
-    """
-    Retourne les abonnements d'un Microtik.
-    
-    Args:
-        network_slug (str): Slug du Microtik
-    
-    Returns:
-        list[SubscriptionWgOutSchema]: Liste des paiements
-    """
-    
-    ...
 
 
-@subscription.get(
-    "/details/{slug}",
-    response=PaidSubscriptionDetailSchema,
-    auth=PermissionsChecker(permissions=[PermissionsEnum.SUBSCRIPTION_READ]),
-    tags=["Abonnements"],
-    summary="Obtenir un Paiement spécifique",
-    description="Récupère les détails d'un paiement par son slug la route pour les admin pour les verifications."
-)
-async def get_subscription(request, slug: str) -> PaidSubscriptionDetailSchema:
-    """
-    Retourne un abonnement spécifique.
-    
-    Args:
-        slug (str): Slug de l'abonnement
-    
-    Returns:
-        SubscriptionResponse: Détails de l'abonnement
-    
-    Raises:
-        HttpError: Si l'abonnement n'existe pas
-    """
-    try:
-        subscription = await PaidSubscription.objects.aget(slug=slug)
-        return subscription
-    except PaidSubscription.DoesNotExist:
-        raise HttpError(
-            status_code=HTTPStatus.NOT_FOUND,
-            message="Abonnement non trouvé"
-        )
-
-
-@subscription.post("/webhook/subscription", response=WebhookOutSchemas)
-def web_hook_subscription(data:WebhookSchema):
-    return
+# @subscription.post("/webhook/subscription", response=WebhookOutSchemas)
+# def web_hook_subscription(data:WebhookSchema):
+#     return
 
 

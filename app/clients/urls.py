@@ -13,15 +13,15 @@ from app.clients.schemas import (
     ClientPaginatedResponseSchema,
     SessionPaginatedResponseSchema,
     ClientBlockedOutSchemas,
-    GroupIdForDelete
+    GroupIdForDelete,
+
 )
 from app.permissions.checker import PermissionsChecker
 from app.permissions.enum_permissions import PermissionsEnum
 
 
 from app.clients.services import (
-    deposit,
-    notif_url,
+    deposit_voucher,
     ClientService,
     )
 
@@ -33,14 +33,16 @@ client_router = Router(tags=["Client"])
         tags=["Achat-ticket"],
         response=DepositResponseSchemas)
 async def deposit_client(request,data:InfoDepositIn, network_slug:str) -> DepositResponseSchemas:
-    return await deposit(network_slug=network_slug,data=data.model_dump())
+    return await deposit_voucher(network_slug=network_slug,data=data.model_dump())
 
 
-@client_router.post("/notif/reponse/transaction/",tags=["Achat-ticket"])
-def notifiurl(request,data:PaymentWebhook):
-    return notif_url(
-        data=data.model_dump()
-    )
+# @client_router.post("/notif/reponse/transaction/",tags=["Achat-ticket"])
+# def notifiurl(request,data:PaymentWebhook):
+#     return webhook_voucher(
+#         data=data.model_dump()
+#     )
+
+
 
 
 @client_router.get(

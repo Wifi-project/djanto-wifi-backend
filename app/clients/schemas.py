@@ -4,6 +4,8 @@ from ninja.schema import Schema,Field
 from uuid import UUID
 from decimal import Decimal
 from typing import List, Optional
+from app.transactions.schemas import TransactionOutIntransaction
+
 
 class PaymentStatus(str, Enum):
     SUCCESS = "SUCCESS"
@@ -22,7 +24,7 @@ class InfoDepositIn(Schema):
     paymentMethod: PaymentMethod
     profil_slug: str
     phone_number: str
-    number_receve_code: str
+    # number_receve_code: str
 
 
 class DepositResponseSchemas(Schema):
@@ -212,6 +214,7 @@ class PaymentWebhook(Schema):
     timestamp: datetime
 
     class Config:
-        # Permet d'utiliser les noms Python (snake_case) 
-        # tout en acceptant le JSON en camelCase
         populate_by_name = True
+
+
+

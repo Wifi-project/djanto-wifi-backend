@@ -2,6 +2,7 @@ from django.db import models
 from app.gdms.models import Profil,Network
 from app.subscriptions.models import SubscriptionCategorie
 from app.commone.models import Base
+from app.users.models import User
 
 
 class TransactionStatus(models.TextChoices):
@@ -34,6 +35,13 @@ class TransactionType(models.TextChoices):
 
 
 class Transaction(Base):  
+    user = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        related_name='user_transaction',
+        null=True,
+        blank=True
+    )
     transaction_id = models.CharField(max_length=250,null=True)  
     phone_number = models.CharField(
         max_length=20, 
@@ -42,6 +50,12 @@ class Transaction(Base):
     amount = models.DecimalField(
         max_digits=10, 
         decimal_places=2
+        )
+    receivedAmount = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2,
+        null=True,
+        blank=True
         )
     network = models.ForeignKey(
         Network, on_delete=models.CASCADE, 

@@ -18,6 +18,7 @@ class UserResponse(Schema):
 
 
 class UserInSchema(ModelSchema):
+    password: str | None = None
     class Meta:
         model = User
         fields = [
@@ -29,6 +30,23 @@ class UserInSchema(ModelSchema):
             'user_type',
             'address',
         ]
+
+
+class ActivationSchema(Schema):
+    token: str
+
+
+class ForgotPassWord(Schema):
+    email: str
+
+class NewPassWord(Schema):
+    password_1: str 
+    password_2: str
+
+
+class ResponseMessage(Schema):
+    status: str 
+    message: str
 
 class UserOutSchema(ModelSchema):
     class Meta:
@@ -110,7 +128,7 @@ class UserPasswordUpdateMe(Schema):
 
 class UserPasswordUpdate(Schema):
     email:str
-    new_password:str
+    # new_password:str
 
 
 class NetworkInfo(Schema):

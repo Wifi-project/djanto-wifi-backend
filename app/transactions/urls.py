@@ -2,22 +2,36 @@ from typing import List
 from django.shortcuts import get_object_or_404
 from ninja import Router, Query
 from ninja.pagination import paginate
+from django.http import HttpRequest, HttpResponse
+from django.conf import settings
 
 from django.shortcuts import get_object_or_404
 from ninja import Router, Query
 from typing import Optional
 from django.db.models import Q
-from app.utils.pagination import paginate_queryset
-from app.transactions.schemas import TransactionOut, TransactionListOut
+from app.transactions.schemas import (
+    TransactionOut,
+    TransactionListOut,
+    ResponseSchemas,
+    )
 from app.transactions.models import Transaction
-
-
+from app.permissions.enum_permissions import PermissionsEnum
+from app.permissions.checker import PermissionsChecker
+from app.transactions.services import (
+    list_subscriptions_for_network,
+    log_transactions_for_owner_network,
+    list_transaction_log,
+    handle_transaction_webhook,
+)
 
 from app.transactions.models import PaymentMethod
 from app.transactions.schemas import (
     PaymentMethodIn,
     PaymentMethodOut,
     PaymentMethodUpdate,
+    TransactionOutIntransaction,
+    TransactionVoucherListOut,
+    WebhookPayload,
 )
 
 transactions = Router(tags=["Payment Methods"])
@@ -75,20 +89,13 @@ def list_transactions(
     status:    Optional[str] = Query(None, description="pending | completed | failed | cancelled"),
     type:      Optional[str] = Query(None, description="Type de transaction"),
 ):
-    qs = Transaction.objects.select_related("network", "profil", "category").order_by("-created_at")
-
-    if search:
-        qs = qs.filter(
-            Q(transaction_id__icontains=search) |
-            Q(phone_number__icontains=search)   |
-            Q(network_name__icontains=search)
-        )
-    if status:
-        qs = qs.filter(status=status)
-    if type:
-        qs = qs.filter(type=type)
-
-    return paginate_queryset(qs, page_num, page_size)
+    return list_transaction_log(
+        search=search,
+        status = status,
+        page_num=page_num,
+        page_size=page_size,
+        type = type
+    )
 
 
 @transactions.get(
@@ -103,3 +110,90 @@ def retrieve_transaction(request, slug: str):
         slug=slug,
     )
     return transaction
+
+
+
+
+#------------------- LES INFORMATIONS SUR LE PAIEMENT -----------------#
+@transactions.get(
+    "network/history/{network_slug}/",
+    response=list[TransactionOut],
+    auth=PermissionsChecker(permissions=[PermissionsEnum.SUBSCRIPTION_READ], owner=True),
+    tags=["Logs transaction"],
+    summary="Lister l'historique des paiements d'abonnements d'un reseau",
+    description=(
+        "Récupère la liste des paiements/abonnements associés à un reseau.\n\n"
+        "**Permissions :**\n"
+        "- Admin \n"
+        "- Propriétaire "
+    )
+)
+def get_subscriptions(request, network_slug: str) -> list[TransactionOut]:
+    network = request.network
+    return list_subscriptions_for_network(network=network)
+
+
+@transactions.get(
+    "/details/{slug}",
+    response=TransactionOut,
+    auth=PermissionsChecker(permissions=[PermissionsEnum.SUBSCRIPTION_READ]),
+    tags=["Logs transaction"],
+    summary="Obtenir un Paiement spécifique",
+    description="Récupère les détails d'un paiement par son slug la route pour les admin pour les verifications."
+)
+async def get_subscription(request, slug: str) -> TransactionOut:
+    ...
+    # try:
+    #     subscription = await Transaction.objects.aget(slug=slug)
+    #     return subscription
+    # except Transaction.DoesNotExist:
+    #     raise HttpError(
+    #         status_code=HTTPStatus.NOT_FOUND,
+    #         message="Abonnement non trouvé"
+    #     )
+
+
+@transactions.get('/vouchers/log/{network_slug}/',
+                tags=["Logs transaction"],
+                response = TransactionVoucherListOut,
+                auth=PermissionsChecker(permissions=[PermissionsEnum.DEPOSIT_READ], owner=True, has_subscription=True),
+                description="Historique de payement des voucher pour un owner."
+                )
+def log_transaction(
+    request,
+    network_slug:str,
+    page_num:  int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    search:str='',
+    status:str = ''):
+    network = request.network 
+
+    return log_transactions_for_owner_network(
+        network=network,
+        search = search,
+        status = status,
+        page_num = page_num,
+        page_size = page_size
+        )
+
+
+
+
+
+#------------------ web hook -----------------------------------#
+
+
+@transactions.post(
+        "/webhook/transactions",
+        tags=["webhook"],
+        # response=ResponseSchemas,
+        description="Le webhook pour le changement des status des transactions"
+        )
+def transaction_webhook(request: HttpRequest,data: WebhookPayload):
+    
+    signature_header = request.headers.get("X-Webhook-Signature")
+    if not signature_header:
+        return HttpResponse("Signature manquante", status=400)
+
+    return handle_transaction_webhook(signature_header=signature_header, data=data.model_dump())
+    

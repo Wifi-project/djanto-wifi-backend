@@ -2,7 +2,7 @@ from app.api_extern.djomy import DjomyClient
 from decimal import Decimal
 
 class AdapterPayement:
-    def __init__(self, code:str):
+    def __init__(self, code:str=""):
         self.client = DjomyClient()
 
     async def payeIn(self,amount:Decimal,method:str,number:str,reference:str,description:str):
@@ -22,3 +22,6 @@ class AdapterPayement:
             number=number,
             provider=provider
         )
+
+
+adapeter_payement = AdapterPayement()

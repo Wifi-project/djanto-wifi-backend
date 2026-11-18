@@ -88,7 +88,7 @@ from pydantic import ConfigDict
 class NetworkOutSchemas(Schema):
     slug: str
     name: str
-    description: str
+    description: str | None = None
     status: StatusEnum | None = None
 
     model_config = ConfigDict(from_attributes=True)

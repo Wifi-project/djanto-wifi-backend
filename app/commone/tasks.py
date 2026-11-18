@@ -31,3 +31,20 @@ def send_async_email_task(self, subject: str, message: str, recipient_list: list
         
     except Exception as e:
         raise e  
+
+
+
+def sender_email(subject: str, message: str, recipient_list: list):
+    
+    try:
+        send_mail(
+            subject=subject,
+            message=message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=list(recipient_list),
+            fail_silently=False,  
+        )
+        return f"Email envoyé à {recipient_list}"
+        
+    except Exception as e:
+        raise  

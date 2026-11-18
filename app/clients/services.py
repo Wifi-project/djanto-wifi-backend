@@ -7,64 +7,185 @@ from app.clients.models import  Client,Status
 from typing import TYPE_CHECKING
 from app.users.models import User
 from django.db import transaction
-from app.api_extern.adapterPayement import AdapterPayement
-# from app.clients.tasks import process_payment_webhook_task
+from app.api_extern.adapterPayement import adapeter_payement
+from django.db import transaction as db_transaction
 from app.gdms.api_gdms import gdms_service
 from app.clients.models import GroupClient
 from app.gdms.models import Network
 from app.gdms.models import Profil
+from asgiref.sync import async_to_sync
+from app.transactions.models import Transaction,TransactionType,PaymentMethod,TransactionStatus
+import secrets
+from app.api_extern.nimba_sms import send_sms
+from app.commone.email import sender_email
+
+async def deposit_voucher(network_slug: str, data: dict):
+    payementMethod = data.get('paymentMethod', "")
+    profil_slug = data.get("profil_slug", "")
+    phone_number = data.get('phone_number', "")
+
+    network = await Network.objects.filter(slug=network_slug,status= Status.ACTIVE,admin_blocked=False).afirst()
+    if not network:
+        raise HttpError(
+            status_code=HTTPStatus.BAD_REQUEST,
+            message="Erreur ce reseau nest pas disponible."
+        )
+    
+    if not payementMethod or not profil_slug or not phone_number:
+        raise HttpError(
+            status_code=HTTPStatus.BAD_REQUEST,
+            message="Erreur le veuillez vous rassurer que tous les champs sont renseigner."
+        )
+
+    payemant_method = await PaymentMethod.objects.filter(code=payementMethod, is_active=True).afirst()
+    profile = await Profil.objects.filter(slug = profil_slug).afirst()
+
+    if not payemant_method or not profile:
+        raise HttpError(
+            status_code=HTTPStatus.BAD_REQUEST,
+            message=f"Erreur le moyen de payement selectionne ou profil n'est pas disponible. "
+        )
+
+    transaction_init = await Transaction.objects.acreate(
+        phone_number = phone_number,
+        amount = profile.price,
+        network = network,
+        network_description = network.description,
+        network_name = network.name,
+        profil= profile,
+        payment_method = payemant_method.code,
+        type = TransactionType.VOUCHER_PURCHASE
+    )
+
+    response = await adapeter_payement.payeIn(
+        amount=profile.price,
+        method=payemant_method.code,
+        number=phone_number,
+        reference="",
+        description=f"achat de voucher par om sur le {network.name}"
+    )
+
+    if response and response.get("transactionId"):
+        transaction_init.transaction_id = response.get("transactionId")
+        await transaction_init.asave(update_fields=['transaction_id'])
+    
+        return {
+            'status':'success',
+            'message':'payement initier avec success.'
+        }
+
+    return {
+        'status':'failled',
+        'message':"Erreur d'initialisation de paiement."
+    }
 
 
 
-async def deposit(microtik_slug: str, data: dict):
-    ...
-    # from app.microtiks.models import Microtik
-    
-    # microtik = await Microtik.objects.prefetch_related("profils").filter(slug=microtik_slug).afirst()
-    # if not microtik:
-    #     raise HttpError(
-    #         status_code=HTTPStatus.BAD_REQUEST,
-    #         message="aucun microtik existant avec ce slug."
-    #     )
-    
-    # profil_slug = data.pop("profil_slug", "") 
-    # profil = await microtik.profils.filter(slug=profil_slug).afirst()
-    # if not profil:
-    #     raise HttpError(
-    #         status_code=HTTPStatus.BAD_REQUEST,
-    #         message="Aucun slug correspond a ce profil."
-    #     )
-    
-    # adapter = AdapterPayement(code="djomy")
-    
-    # reference = await InfoDeposit.objects.acreate(
-    #     **data, 
-    #     microtik=microtik,
-    #     profil_name=profil.name,
-    #     limit_uptime=profil.rate_limit,
-    #     amount=profil.price
-    # )
-    
-    # response = await adapter.payeIn(
-    #     amount=profil.price,
-    #     method=data.get("paymentMethod"),
-    #     number=data.get("phone_number"),
-    #     reference=reference.slug,
-    #     description = " Achat de ticket"
-    # )
-    
-    # return response
+import secrets
+from asgiref.sync import async_to_sync
+from django.db import transaction as db_transaction
 
-
-
-def notif_url(data: dict) -> dict:
+def webhook_voucher(transaction: Transaction) -> dict:
     """
     Webhook de notification de paiement.
     Gère la validation du paiement, la création du ticket sur le MikroTik
     et la mise à jour de la base de données.
     """
-    ...
-    # return process_payment_webhook_task.delay(data=data)         
+    network = transaction.network
+    phone_number = transaction.phone_number
+    profil = transaction.profil
+
+    network.wallet_balance = network.wallet_balance + transaction.amount
+    network.save(update_fields=['wallet_balance'])
+
+    need_generation = False
+    with db_transaction.atomic():
+        if not Client.objects.filter(network=network, buy=False).exists():
+            need_generation = True
+
+    if need_generation:
+        name = f"systeme_voucher_{secrets.token_urlsafe(10)}"
+        
+        group_voucher = async_to_sync(gdms_service.create_vouchers)(
+            network_id=network.network_id,
+            upRate=profil.up_rate,
+            downRate=profil.down_rate,
+            name=name,
+            count=500,
+            effect_duration_map=profil.session_timeout_dict,
+            max_devices=profil.shared_users,
+        )
+        
+        if not group_voucher or not group_voucher.get('status'):
+            raise Exception("Échec de la création des vouchers sur GDMS")
+
+        response_new_voucher_list = async_to_sync(gdms_service.list_group_voucher)(
+            network_id=network.network_id,
+            page_num=1,
+            page_size=10,
+            search=name
+        )
+
+        if not response_new_voucher_list or not response_new_voucher_list.get('status'):
+            raise Exception("Échec de la récupération du groupe de vouchers")
+
+        data = response_new_voucher_list.get('data', {})
+        result = data.get("result", [])
+
+        if not result:
+            raise Exception("Aucun groupe trouvé pour ce nom sur GDMS")
+
+        current_group = result[0]
+        current_group_id = current_group.get("id")
+        
+        if not current_group_id:
+            raise Exception("ID du groupe GDMS introuvable")
+
+        vouchers_list_data = async_to_sync(gdms_service.list_voucher_in_group)(
+            group_id=current_group_id,
+            network_id=network.network_id,
+            page_num=1,
+            page_size=500
+        )
+
+        voucher_result = vouchers_list_data.get('result', [])
+        if not voucher_result:
+            raise Exception("Aucun voucher retourné par le groupe GDMS")
+
+        with db_transaction.atomic():
+            if not Client.objects.filter(network=network, buy=False).exists():
+                clients_to_create = [
+                    Client(
+                        code_password=voucher.get("password"),
+                        code_username=voucher.get("password"),
+                        network=network
+                    )
+                    for voucher in voucher_result if voucher.get("password")
+                ]
+                Client.objects.bulk_create(clients_to_create)
+
+
+    with db_transaction.atomic():
+        voucher = Client.objects.select_for_update(skip_locked=True).filter(network=network, buy=False).first()
+
+        if not voucher:
+            return {"status": "error", "message": "Aucun voucher disponible pour ce réseau."}
+
+        voucher.buy = True
+        voucher.save(update_fields=["buy"])
+
+    response_sms = send_sms.send(
+        phone_number,
+        message=f"Votre voucher de connexion : \n {voucher.code_password} \n prix: {transaction.amount}"
+    )
+
+    if response_sms and response_sms.get('status') == "success":
+        voucher.sms_send = True
+        voucher.save(update_fields=["sms_send"])
+        return {"status": "success", "message": "Voucher attribué et SMS envoyé."}
+    
+    return {"status": "warning", "message": "Voucher trouvé mais échec de l'envoi du SMS."}
+
 
 
 class ClientService:
@@ -72,7 +193,7 @@ class ClientService:
     @staticmethod
     async def create_voucher_service(network:Network,profil_slug,voucher_number):
         profil = await network.profils.filter(slug=profil_slug).afirst()
-        name = f"voucher_{profil.name}-{timezone.now()}"
+        name = f"voucher_{profil.name}-{timezone.now().date()}-{secrets.token_urlsafe(2)}"
         if not profil:
             raise HttpError(
                 status_code=HTTPStatus.BAD_REQUEST,
@@ -117,7 +238,6 @@ class ClientService:
                 status_code=HTTPStatus.BAD_GATEWAY,
                 message=f"une erreur backend s'est produit {res.get('data')}"
             )
-        print("-----------\n la response",res)
         return res.get('data')
 
 
