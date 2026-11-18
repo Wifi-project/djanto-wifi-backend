@@ -30,8 +30,8 @@ class HmacGen:
 class DjomyClient(BaseService):
 
     def __init__(self):
-        self.api_key = os.getenv('DJOMY-API-KEY',"djomy-client-1756569269779-996a")
-        self.secret_key = os.getenv('DJOMY-SECRET-KEY',"s3cr3t-UX7dltPbKjR6JWVuWak84jGzfhe6bOSD")
+        self.api_key = os.getenv('DJOMY-API-KEY',)
+        self.secret_key = os.getenv('DJOMY-SECRET-KEY')
         self.base_url = os.getenv("BASE_URL","https://sandbox-api.djomy.africa/v1")
         self.code = "djomy"
         self.return_url = "https://www.test.com"

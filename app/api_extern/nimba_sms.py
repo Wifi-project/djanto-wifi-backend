@@ -11,7 +11,7 @@ class NimbaSms:
         self.code = "nimbasms"
         self.base_url = os.getenv("BASE_URL_NIMBA","https://api.nimbasms.com/v1/")
         self.sendername = os.getenv("SENDER_NAME","Djantowifi")
-        self.authorization = os.getenv("AUTHORIZATION_NIMBA","Basic NzExYjE4MjllYTQxYTFhYWU1NzM0YWE5ZjM0MmIxOWI6VVhITXFka1ZwT3BZVjhSSm13emVkeG52MnB3UmpaX1o1dWVmNHhyUC00WHdjaFBEd0M1RVlubV9ZQUpKWEtLUTBfZTVpVVhDeXJocXRHblMySTJLemlXQjdqVlBuX1ZFdzVjLUg1bl9VSUk=") 
+        self.authorization = os.getenv("AUTHORIZATION_NIMBA") 
 
     async def urls(self, value):
         url_data = {
