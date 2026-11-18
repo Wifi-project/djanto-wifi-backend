@@ -234,18 +234,18 @@ async def init_configuration(data:dict, network_data:dict,user):
         transaction.transaction_id = response.get("transactionId")
         await transaction.asave(update_fields=['transaction_id'])
 
-        # from app.gdms.services import create_network_service
-        # network = await create_network_service(data=network_data,user=user)
-        # if network:
-        #     network.subscription_at = timezone.now()
-        #     network.configuration_paid = True
-        #     network.subscription_expire_at = timezone.now() + timedelta(days=30)
-        #     await network.asave(update_fields=["subscription_expire_at","configuration_paid"])
+        from app.gdms.services import create_network_service
+        network = await create_network_service(data=network_data,user=user)
+        if network:
+            network.subscription_at = timezone.now()
+            network.configuration_paid = True
+            network.subscription_expire_at = timezone.now() + timedelta(days=30)
+            await network.asave(update_fields=["subscription_expire_at","configuration_paid"])
 
-        return {
-            'status':'success',
-            'message':'Veuillez confirmer le paiement pour finaliser la creation de votre reseau.'
-        }
+            return {
+                'status':'success',
+                'message':'Veuillez confirmer le paiement pour finaliser la creation de votre reseau.'
+            }
 
     return {
         'status':'failled',
