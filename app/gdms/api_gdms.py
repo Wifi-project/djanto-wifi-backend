@@ -190,6 +190,11 @@ class GdmsService(BaseService):
         if not token:
             return self.response(data=f'la requette token a echouer {token}',status=False)
 
+        print("✅✅✅✅✅")
+        print('se', self.secret_key)
+        print('ap', self.app_id)
+        print('orga', self.organization_id)
+        print("ad", self.admin_user_id)
 
         signature = await self.signature(token=token, timestamp=timestamp, payload=payload)
 
